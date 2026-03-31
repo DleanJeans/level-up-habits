@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Habit, HabitLog, Task } from '../models/types';
+import { Habit, HabitLog, Task, MoodLog } from '../models/types';
 
 const HABITS_KEY = 'habits';
 const LOGS_PREFIX = 'logs_';
 const TASKS_PREFIX = 'tasks_';
+const MOOD_LOGS_PREFIX = 'mood_logs_';
 
 // --- Habits ---
 
@@ -125,6 +126,43 @@ export async function getLastNDayTotals(
 
 export async function getLast7DayTotals(): Promise<{ date: string; totalStars: number }[]> {
   return getLastNDayTotals(7);
+}
+
+// --- Mood Logs ---
+
+function moodLogsKey(date: string): string {
+  return `${MOOD_LOGS_PREFIX}${date}`;
+}
+
+export async function getMoodLogsForDate(date: string): Promise<MoodLog[]> {
+  const json = await AsyncStorage.getItem(moodLogsKey(date));
+  return json ? JSON.parse(json) : [];
+}
+
+export async function saveMoodLog(log: MoodLog): Promise<void> {
+  const logs = await getMoodLogsForDate(log.date);
+  const idx = logs.findIndex((l) => l.id === log.id);
+  if (idx >= 0) {
+    logs[idx] = log;
+  } else {
+    logs.push(log);
+  }
+  await AsyncStorage.setItem(moodLogsKey(log.date), JSON.stringify(logs));
+}
+
+export async function deleteMoodLog(id: string, date: string): Promise<void> {
+  const logs = await getMoodLogsForDate(date);
+  const filtered = logs.filter((l) => l.id !== id);
+  await AsyncStorage.setItem(moodLogsKey(date), JSON.stringify(filtered));
+}
+
+// --- Reminder helpers ---
+
+export async function getHabitsWithReminderAfter(triggerHabitId: string): Promise<Habit[]> {
+  const habits = await getHabits();
+  return habits.filter(
+    (h) => h.reminders?.some((r) => r.afterHabitId === triggerHabitId)
+  );
 }
 
 export function formatDate(d: Date): string {

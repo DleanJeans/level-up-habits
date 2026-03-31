@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   StyleSheet,
   Platform,
   SectionList,
+  Animated,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { Habit, HabitLog, Task } from '../models/types';
+import { Habit, HabitLog, Task, MoodLog, CueType } from '../models/types';
 import {
   getHabits,
   getLogsForDate,
@@ -21,6 +23,10 @@ import {
   saveTask,
   deleteTask,
   toggleTask,
+  getHabitsWithReminderAfter,
+  saveMoodLog,
+  getMoodLogsForDate,
+  deleteMoodLog,
 } from '../store/storage';
 import { calculateStars } from '../store/starCalculator';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -39,15 +45,25 @@ export default function DailyLogScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskStars, setNewTaskStars] = useState('1');
+  // Reminder banners
+  const [reminderBanners, setReminderBanners] = useState<{ habitName: string; message: string }[]>([]);
+  // Cue prompt
+  const [cuePrompt, setCuePrompt] = useState<{ cue: string; cueType: CueType; habitName: string } | null>(null);
+  // Mood logs
+  const [moodLogs, setMoodLogs] = useState<MoodLog[]>([]);
+  // All habits (for cue matching)
+  const [allHabits, setAllHabits] = useState<Habit[]>([]);
 
   const dateStr = formatDate(currentDate);
 
   const loadData = useCallback(async () => {
-    const [h, l, t] = await Promise.all([
+    const [h, l, t, ml] = await Promise.all([
       getHabits(),
       getLogsForDate(dateStr),
       getTasksForDate(dateStr),
+      getMoodLogsForDate(dateStr),
     ]);
+    setAllHabits(h);
     // Filter to daily habits only (non-daily habits don't show on daily view)
     const dailyHabits = h.filter((habit) => (habit.frequency || 'daily') === 'daily');
     setHabits(dailyHabits);
@@ -55,6 +71,7 @@ export default function DailyLogScreen() {
     l.forEach((log) => logMap.set(log.habitId, log));
     setLogs(logMap);
     setTasks(t);
+    setMoodLogs(ml);
     const logStars = l.reduce((sum, log) => sum + log.starsEarned, 0);
     const taskStars = t.filter((task) => task.completed).reduce((sum, task) => sum + task.stars, 0);
     setTotalStars(logStars + taskStars);
@@ -80,6 +97,9 @@ export default function DailyLogScreen() {
       loggedAt: now,
     };
     await saveLog(log);
+    if (newValue) {
+      await checkRemindersAndCues(habit);
+    }
     loadData();
   }
 
@@ -129,6 +149,58 @@ export default function DailyLogScreen() {
       loggedAt: now,
     };
     await saveLog(log);
+    if (newValue) {
+      await checkRemindersAndCues(habit);
+    }
+    loadData();
+  }
+
+  // --- After logging a habit, check for reminders and cue matches ---
+  async function checkRemindersAndCues(loggedHabit: Habit) {
+    // 1. Check if any habits have a reminder triggered by this habit
+    const triggered = await getHabitsWithReminderAfter(loggedHabit.id);
+    if (triggered.length > 0) {
+      const banners = triggered.map((h) => {
+        const rem = h.reminders!.find((r) => r.afterHabitId === loggedHabit.id)!;
+        return {
+          habitName: h.name,
+          message: rem.message || `Time to do: ${h.name}`,
+        };
+      });
+      setReminderBanners(banners);
+      // Auto-dismiss after 5 seconds
+      setTimeout(() => setReminderBanners([]), 5000);
+    }
+
+    // 2. Check if any habits have a "habit" cue pointing to the logged habit
+    const cueMatches = allHabits.filter(
+      (h) =>
+        h.id !== loggedHabit.id &&
+        h.cues?.some((c) => c.type === 'habit' && c.habitId === loggedHabit.id)
+    );
+    if (cueMatches.length > 0) {
+      const match = cueMatches[0];
+      const cue = match.cues!.find((c) => c.type === 'habit' && c.habitId === loggedHabit.id)!;
+      setCuePrompt({ cue: cue.value || loggedHabit.name, cueType: 'habit', habitName: match.name });
+    }
+  }
+
+  function dismissCuePrompt() {
+    setCuePrompt(null);
+  }
+
+  async function logCueAsMood() {
+    if (!cuePrompt) return;
+    const moodLog: MoodLog = {
+      id: uuidv4(),
+      date: dateStr,
+      cue: cuePrompt.cue,
+      cueType: cuePrompt.cueType,
+      routineChosen: cuePrompt.habitName,
+      createdAt: new Date().toISOString(),
+    };
+    await saveMoodLog(moodLog);
+    setCuePrompt(null);
     loadData();
   }
 
@@ -283,6 +355,105 @@ export default function DailyLogScreen() {
           <MaterialCommunityIcons name="star" size={28} color="#fbbf24" />
         </View>
       </View>
+
+      {/* Reminder banners */}
+      {reminderBanners.map((banner, i) => (
+        <View key={i} style={styles.reminderBanner}>
+          <MaterialCommunityIcons name="bell-ring" size={18} color="#818cf8" />
+          <View style={styles.reminderBannerContent}>
+            <Text style={styles.reminderBannerTitle}>{banner.habitName}</Text>
+            <Text style={styles.reminderBannerMsg}>{banner.message}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setReminderBanners((b) => b.filter((_, j) => j !== i))}>
+            <MaterialCommunityIcons name="close" size={18} color="#9ca3af" />
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      {/* Cue prompt modal */}
+      <Modal visible={!!cuePrompt} transparent animationType="fade" onRequestClose={dismissCuePrompt}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.cueModal}>
+            <MaterialCommunityIcons name="link-variant" size={28} color="#818cf8" />
+            <Text style={styles.cueModalTitle}>Cue Detected</Text>
+            <Text style={styles.cueModalText}>
+              You just logged a habit linked as a cue for:
+            </Text>
+            <Text style={styles.cueModalHabit}>{cuePrompt?.habitName}</Text>
+            <View style={styles.cueModalActions}>
+              <TouchableOpacity style={styles.cueModalBtn} onPress={logCueAsMood}>
+                <Text style={styles.cueModalBtnText}>Log It</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cueModalDismiss} onPress={dismissCuePrompt}>
+                <Text style={styles.cueModalDismissText}>Dismiss</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Cues display — active cues for today */}
+      {allHabits.some((h) => h.cues && h.cues.length > 0) && (
+        <View style={styles.cuesSection}>
+          {allHabits
+            .filter((h) => h.cues && h.cues.length > 0 && h.cues.some((c) => c.type !== 'habit'))
+            .map((h) =>
+              h.cues!
+                .filter((c) => c.type !== 'habit')
+                .map((c, ci) => (
+                  <View key={`${h.id}-${ci}`} style={styles.cueChip}>
+                    <MaterialCommunityIcons
+                      name={
+                        c.type === 'location'
+                          ? 'map-marker'
+                          : c.type === 'mood'
+                          ? 'emoticon-outline'
+                          : 'clock-outline'
+                      }
+                      size={14}
+                      color="#818cf8"
+                    />
+                    <Text style={styles.cueChipText}>{c.value}</Text>
+                    <Text style={styles.cueChipArrow}>→</Text>
+                    <Text style={styles.cueChipHabit}>{h.name}</Text>
+                  </View>
+                ))
+            )}
+        </View>
+      )}
+
+      {/* Mood logs for today */}
+      {moodLogs.length > 0 && (
+        <View style={styles.moodLogsSection}>
+          <Text style={styles.sectionTitle}>Mood Log</Text>
+          {moodLogs.map((ml) => (
+            <View key={ml.id} style={styles.moodLogRow}>
+              <MaterialCommunityIcons
+                name={
+                  ml.cueType === 'location'
+                    ? 'map-marker'
+                    : ml.cueType === 'mood'
+                    ? 'emoticon-outline'
+                    : ml.cueType === 'habit'
+                    ? 'link-variant'
+                    : 'clock-outline'
+                }
+                size={16}
+                color="#818cf8"
+              />
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text style={styles.moodLogCue}>{ml.cue}</Text>
+                {ml.routineChosen && (
+                  <Text style={styles.moodLogRoutine}>→ {ml.routineChosen}</Text>
+                )}
+              </View>
+              <TouchableOpacity onPress={() => { deleteMoodLog(ml.id, dateStr); loadData(); }}>
+                <MaterialCommunityIcons name="close" size={16} color="#555" />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
 
       {habits.length === 0 && tasks.length === 0 ? (
         <View style={styles.empty}>
@@ -455,4 +626,95 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // Reminder banners
+  reminderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 12,
+    backgroundColor: '#1e1b4b',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#6366f1',
+    gap: 10,
+  },
+  reminderBannerContent: { flex: 1 },
+  reminderBannerTitle: { fontSize: 14, fontWeight: '600', color: '#818cf8' },
+  reminderBannerMsg: { fontSize: 13, color: '#c4b5fd', marginTop: 2 },
+  // Cue prompt modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  cueModal: {
+    backgroundColor: '#1e1e1e',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 360,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  cueModalTitle: { fontSize: 18, fontWeight: 'bold', color: '#f0f0f0', marginTop: 10 },
+  cueModalText: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginTop: 8 },
+  cueModalHabit: { fontSize: 16, fontWeight: '600', color: '#818cf8', marginTop: 4 },
+  cueModalActions: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  cueModalBtn: {
+    flex: 1,
+    backgroundColor: '#6366f1',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  cueModalBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  cueModalDismiss: {
+    flex: 1,
+    backgroundColor: '#2a2a2a',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  cueModalDismissText: { color: '#bbb', fontSize: 14 },
+  // Cue chips
+  cuesSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  cueChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#1a1a2e',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  cueChipText: { fontSize: 12, color: '#c4b5fd' },
+  cueChipArrow: { fontSize: 12, color: '#555' },
+  cueChipHabit: { fontSize: 12, color: '#818cf8', fontWeight: '500' },
+  // Mood logs
+  moodLogsSection: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 10,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 10,
+  },
+  moodLogRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  moodLogCue: { fontSize: 13, color: '#c4b5fd' },
+  moodLogRoutine: { fontSize: 12, color: '#818cf8' },
 });

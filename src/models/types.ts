@@ -25,6 +25,25 @@ export interface TimeFrame {
   stars: number;
 }
 
+export type CueType = 'location' | 'mood' | 'time' | 'habit';
+
+export interface Cue {
+  type: CueType;
+  /** Descriptive value: place name, mood label, time string, or linked habit name */
+  value: string;
+  /** If type === 'habit', the ID of the triggering habit */
+  habitId?: string;
+}
+
+export interface Reminder {
+  /** The habit whose completion triggers this reminder */
+  afterHabitId?: string;
+  /** Delay in minutes after the triggering habit is logged */
+  delayMinutes?: number;
+  /** Custom reminder message */
+  message?: string;
+}
+
 export interface Habit {
   id: string;
   name: string;
@@ -48,6 +67,10 @@ export interface Habit {
   extraThreshold?: number;
   /** Habit frequency: daily, weekly, monthly, yearly */
   frequency?: Frequency;
+  /** Cues that trigger this habit */
+  cues?: Cue[];
+  /** Reminders linked to other habits */
+  reminders?: Reminder[];
 }
 
 export interface HabitLog {
@@ -70,5 +93,15 @@ export interface Task {
   stars: number;
   completed: boolean;
   date: string; // YYYY-MM-DD
+  createdAt: string; // ISO timestamp
+}
+
+export interface MoodLog {
+  id: string;
+  date: string; // YYYY-MM-DD
+  cue: string;
+  cueType: CueType;
+  routineChosen?: string;
+  outcomeEmotions?: string[];
   createdAt: string; // ISO timestamp
 }

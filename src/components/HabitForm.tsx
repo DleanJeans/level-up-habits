@@ -11,10 +11,11 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Habit, HabitType, Tier, ExtraRule, TimeFrame, Frequency } from '../models/types';
+import { Habit, HabitType, Tier, ExtraRule, TimeFrame, Frequency, Cue, CueType, Reminder } from '../models/types';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
 import WebContainer from './WebContainer';
+import { getHabits } from '../store/storage';
 
 interface Props {
   habit?: Habit | null;
@@ -55,6 +56,16 @@ export default function HabitForm({ habit, onSave, onCancel }: Props) {
   );
   // Frequency state
   const [frequency, setFrequency] = useState<Frequency>(habit?.frequency || 'daily');
+  // Cues state
+  const [cues, setCues] = useState<Cue[]>(habit?.cues || []);
+  // Reminders state
+  const [reminders, setReminders] = useState<Reminder[]>(habit?.reminders || []);
+  // All habits for reminder "after habit" picker
+  const [allHabits, setAllHabits] = useState<Habit[]>([]);
+
+  useEffect(() => {
+    getHabits().then(setAllHabits);
+  }, []);
 
   function handleSave() {
     if (!name.trim()) return;
@@ -97,7 +108,61 @@ export default function HabitForm({ habit, onSave, onCancel }: Props) {
       }));
     }
 
+    // Cues
+    const validCues = cues.filter((c) => c.value.trim() || (c.type === 'habit' && c.habitId));
+    if (validCues.length > 0) {
+      h.cues = validCues;
+    }
+
+    // Reminders
+    const validReminders = reminders.filter((r) => r.afterHabitId || r.message?.trim());
+    if (validReminders.length > 0) {
+      h.reminders = validReminders;
+    }
+
     onSave(h);
+  }
+
+  // --- Cue helpers ---
+  const CUE_TYPES: CueType[] = ['location', 'mood', 'time', 'habit'];
+  const CUE_TYPE_ICONS: Record<CueType, string> = {
+    location: 'map-marker',
+    mood: 'emoticon-outline',
+    time: 'clock-outline',
+    habit: 'link-variant',
+  };
+
+  function addCue() {
+    setCues([...cues, { type: 'location', value: '' }]);
+  }
+
+  function updateCue(index: number, field: keyof Cue, val: string) {
+    const updated = [...cues];
+    updated[index] = { ...updated[index], [field]: val };
+    // Clear habitId if type is not 'habit'
+    if (field === 'type' && val !== 'habit') {
+      delete updated[index].habitId;
+    }
+    setCues(updated);
+  }
+
+  function removeCue(index: number) {
+    setCues(cues.filter((_, i) => i !== index));
+  }
+
+  // --- Reminder helpers ---
+  function addReminder() {
+    setReminders([...reminders, { delayMinutes: 5, message: '' }]);
+  }
+
+  function updateReminder(index: number, field: keyof Reminder, val: string | number) {
+    const updated = [...reminders];
+    updated[index] = { ...updated[index], [field]: val };
+    setReminders(updated);
+  }
+
+  function removeReminder(index: number) {
+    setReminders(reminders.filter((_, i) => i !== index));
   }
 
   function updateTier(index: number, field: 'value' | 'stars', val: string) {
@@ -444,6 +509,122 @@ export default function HabitForm({ habit, onSave, onCancel }: Props) {
         ))}
       </View>
 
+      {/* Cues Section */}
+      <Text style={styles.label}>Cues</Text>
+      {cues.map((cue, i) => (
+        <View key={i} style={styles.cueRow}>
+          <View style={styles.cueTypeRow}>
+            {CUE_TYPES.map((ct) => (
+              <TouchableOpacity
+                key={ct}
+                style={[styles.cueTypeBtn, cue.type === ct && styles.cueTypeBtnActive]}
+                onPress={() => updateCue(i, 'type', ct)}
+              >
+                <MaterialCommunityIcons
+                  name={CUE_TYPE_ICONS[ct] as any}
+                  size={14}
+                  color={cue.type === ct ? '#818cf8' : '#9ca3af'}
+                />
+                <Text style={[styles.cueTypeBtnText, cue.type === ct && styles.cueTypeBtnTextActive]}>
+                  {ct.charAt(0).toUpperCase() + ct.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {cue.type === 'habit' ? (
+            <View style={styles.cueHabitPicker}>
+              {allHabits
+                .filter((h) => h.id !== habit?.id)
+                .map((h) => (
+                  <TouchableOpacity
+                    key={h.id}
+                    style={[styles.cueHabitOption, cue.habitId === h.id && styles.cueHabitOptionActive]}
+                    onPress={() => {
+                      const updated = [...cues];
+                      updated[i] = { ...updated[i], habitId: h.id, value: h.name };
+                      setCues(updated);
+                    }}
+                  >
+                    <Text style={[styles.cueHabitOptionText, cue.habitId === h.id && styles.cueHabitOptionTextActive]}>
+                      {h.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+            </View>
+          ) : (
+            <TextInput
+              style={styles.input}
+              value={cue.value}
+              onChangeText={(v) => updateCue(i, 'value', v)}
+              placeholder={
+                cue.type === 'location'
+                  ? 'e.g. At the gym'
+                  : cue.type === 'mood'
+                  ? 'e.g. Feeling stressed'
+                  : 'e.g. After lunch'
+              }
+              placeholderTextColor="#555"
+            />
+          )}
+          <TouchableOpacity onPress={() => removeCue(i)} style={styles.removeCueBtn}>
+            <MaterialCommunityIcons name="close-circle" size={20} color="#f87171" />
+          </TouchableOpacity>
+        </View>
+      ))}
+      <TouchableOpacity style={styles.addFrameBtn} onPress={addCue}>
+        <MaterialCommunityIcons name="plus-circle-outline" size={18} color="#818cf8" />
+        <Text style={styles.addFrameText}>Add cue</Text>
+      </TouchableOpacity>
+
+      {/* Reminders Section */}
+      <Text style={styles.label}>Reminders</Text>
+      {reminders.map((rem, i) => (
+        <View key={i} style={styles.reminderRow}>
+          <Text style={styles.reminderLabel}>After completing:</Text>
+          <View style={styles.cueHabitPicker}>
+            {allHabits
+              .filter((h) => h.id !== habit?.id)
+              .map((h) => (
+                <TouchableOpacity
+                  key={h.id}
+                  style={[styles.cueHabitOption, rem.afterHabitId === h.id && styles.cueHabitOptionActive]}
+                  onPress={() => updateReminder(i, 'afterHabitId', h.id)}
+                >
+                  <Text style={[styles.cueHabitOptionText, rem.afterHabitId === h.id && styles.cueHabitOptionTextActive]}>
+                    {h.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+          </View>
+          <View style={styles.tierRow}>
+            <Text style={styles.text}>Delay: </Text>
+            <TextInput
+              style={[styles.input, styles.tierInput]}
+              value={String(rem.delayMinutes ?? 5)}
+              onChangeText={(v) => updateReminder(i, 'delayMinutes', parseInt(v) || 0)}
+              keyboardType="number-pad"
+              placeholder="5"
+              placeholderTextColor="#555"
+            />
+            <Text style={styles.text}> min</Text>
+          </View>
+          <TextInput
+            style={styles.input}
+            value={rem.message ?? ''}
+            onChangeText={(v) => updateReminder(i, 'message', v)}
+            placeholder="Reminder message..."
+            placeholderTextColor="#555"
+          />
+          <TouchableOpacity onPress={() => removeReminder(i)} style={styles.removeCueBtn}>
+            <MaterialCommunityIcons name="close-circle" size={20} color="#f87171" />
+          </TouchableOpacity>
+        </View>
+      ))}
+      <TouchableOpacity style={styles.addFrameBtn} onPress={addReminder}>
+        <MaterialCommunityIcons name="plus-circle-outline" size={18} color="#818cf8" />
+        <Text style={styles.addFrameText}>Add reminder</Text>
+      </TouchableOpacity>
+
       <View style={[styles.row, { marginTop: 24, marginBottom: 16 }]}>
         <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} activeOpacity={0.7}>
           <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -542,4 +723,37 @@ const styles = StyleSheet.create({
   freqBtnActive: { borderColor: '#6366f1', backgroundColor: '#1e1b4b' },
   freqBtnText: { fontSize: 12, color: '#9ca3af' },
   freqBtnTextActive: { color: '#818cf8', fontWeight: '600' },
+  // Cue styles
+  cueRow: { marginVertical: 6, backgroundColor: '#1a1a2e', borderRadius: 10, padding: 10 },
+  cueTypeRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  cueTypeBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444',
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  cueTypeBtnActive: { borderColor: '#6366f1', backgroundColor: '#1e1b4b' },
+  cueTypeBtnText: { fontSize: 11, color: '#9ca3af' },
+  cueTypeBtnTextActive: { color: '#818cf8', fontWeight: '600' },
+  cueHabitPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 6 },
+  cueHabitOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#444',
+    backgroundColor: '#1e1e1e',
+  },
+  cueHabitOptionActive: { borderColor: '#6366f1', backgroundColor: '#1e1b4b' },
+  cueHabitOptionText: { fontSize: 13, color: '#9ca3af' },
+  cueHabitOptionTextActive: { color: '#818cf8', fontWeight: '600' },
+  removeCueBtn: { alignSelf: 'flex-end', padding: 4, marginTop: 4 },
+  // Reminder styles
+  reminderRow: { marginVertical: 6, backgroundColor: '#1a1a2e', borderRadius: 10, padding: 10 },
+  reminderLabel: { fontSize: 13, color: '#9ca3af', marginBottom: 4 },
 });
