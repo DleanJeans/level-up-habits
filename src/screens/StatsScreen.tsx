@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { getLastNDayTotals } from '../store/storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import WebContainer from '../components/WebContainer';
 
 type RangeOption = 7 | 14 | 30;
 
@@ -29,6 +30,7 @@ export default function StatsScreen() {
   }
 
   return (
+    <WebContainer>
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <Text style={styles.header}>Star Stats</Text>
 
@@ -112,6 +114,7 @@ export default function StatsScreen() {
         </View>
       </View>
     </View>
+    </WebContainer>
   );
 }
 

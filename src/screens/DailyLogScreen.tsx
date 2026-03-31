@@ -25,6 +25,7 @@ import {
 import { calculateStars } from '../store/starCalculator';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
+import WebContainer from '../components/WebContainer';
 
 export default function DailyLogScreen() {
   const insets = useSafeAreaInsets();
@@ -259,6 +260,7 @@ export default function DailyLogScreen() {
   }
 
   return (
+    <WebContainer>
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Date navigation */}
       <View style={styles.dateNav}>
@@ -344,6 +346,7 @@ export default function DailyLogScreen() {
         />
       )}
     </View>
+    </WebContainer>
   );
 }
 

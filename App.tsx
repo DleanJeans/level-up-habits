@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { DarkTheme, NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -31,9 +32,24 @@ export default function App() {
             paddingTop: 4,
             paddingBottom: 8,
             height: 64,
+            ...(Platform.OS === 'web' ? {
+              maxWidth: 600,
+              alignSelf: 'center' as const,
+              width: '100%',
+              borderTopWidth: 0,
+              borderTopLeftRadius: 0,
+              borderTopRightRadius: 0,
+            } : {}),
           },
           tabBarLabelStyle: { fontSize: 12, fontWeight: '500' },
           tabBarIconStyle: { marginBottom: -2 },
+          headerStyle: Platform.OS === 'web' ? {
+            elevation: 0,
+            shadowOpacity: 0,
+            borderBottomWidth: 1,
+            borderBottomColor: '#2a2a2a',
+          } : undefined,
+          headerTitleAlign: 'center',
         }}
       >
         <Tab.Screen

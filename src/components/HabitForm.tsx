@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Habit, HabitType, Tier, ExtraRule, TimeFrame, Frequency } from '../models/types';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
+import WebContainer from './WebContainer';
 
 interface Props {
   habit?: Habit | null;
@@ -120,6 +121,7 @@ export default function HabitForm({ habit, onSave, onCancel }: Props) {
   }
 
   return (
+    <WebContainer>
     <KeyboardAvoidingView
       style={styles.keyboardAvoid}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -452,6 +454,7 @@ export default function HabitForm({ habit, onSave, onCancel }: Props) {
       </View>
     </ScrollView>
     </KeyboardAvoidingView>
+    </WebContainer>
   );
 }
 

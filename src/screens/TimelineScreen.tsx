@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Habit, HabitLog } from '../models/types';
 import { getHabits, getLogsForDate, formatDate } from '../store/storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import WebContainer from '../components/WebContainer';
 
 interface TimelineEntry {
   habit: Habit;
@@ -83,6 +84,7 @@ export default function TimelineScreen() {
   const segments = ['Night', 'Morning', 'Afternoon', 'Evening'];
 
   return (
+    <WebContainer>
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Date navigation */}
       <View style={styles.dateNav}>
@@ -151,6 +153,7 @@ export default function TimelineScreen() {
         )}
       </ScrollView>
     </View>
+    </WebContainer>
   );
 }
 

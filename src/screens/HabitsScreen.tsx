@@ -14,6 +14,7 @@ import { Habit } from '../models/types';
 import { getHabits, saveHabit, deleteHabit } from '../store/storage';
 import HabitForm from '../components/HabitForm';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import WebContainer from '../components/WebContainer';
 
 export default function HabitsScreen() {
   const insets = useSafeAreaInsets();
@@ -114,6 +115,7 @@ export default function HabitsScreen() {
   }
 
   return (
+    <WebContainer>
     <View style={styles.container}>
       <Text style={styles.header}>My Habits</Text>
 
@@ -153,6 +155,7 @@ export default function HabitsScreen() {
         />
       </Modal>
     </View>
+    </WebContainer>
   );
 }
 
