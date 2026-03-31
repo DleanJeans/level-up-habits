@@ -9,12 +9,14 @@ import {
   Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Habit } from '../models/types';
 import { getHabits, saveHabit, deleteHabit } from '../store/storage';
 import HabitForm from '../components/HabitForm';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function HabitsScreen() {
+  const insets = useSafeAreaInsets();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
@@ -111,16 +113,18 @@ export default function HabitsScreen() {
           data={habits}
           keyExtractor={(item) => item.id}
           renderItem={renderHabit}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: 80 + insets.bottom }]}
+          showsVerticalScrollIndicator={false}
         />
       )}
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: 24 + insets.bottom }]}
         onPress={() => {
           setEditingHabit(null);
           setShowForm(true);
         }}
+        activeOpacity={0.8}
       >
         <MaterialCommunityIcons name="plus" size={28} color="#fff" />
       </TouchableOpacity>
@@ -141,42 +145,43 @@ export default function HabitsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
-  header: { fontSize: 28, fontWeight: 'bold', padding: 20, paddingBottom: 10, color: '#f0f0f0' },
+  header: { fontSize: 26, fontWeight: 'bold', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, color: '#f0f0f0' },
   list: { paddingHorizontal: 16 },
   habitRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginVertical: 4,
     backgroundColor: '#1e1e1e',
-    borderRadius: 10,
+    borderRadius: 12,
+    minHeight: 64,
   },
-  habitInfo: { flex: 1 },
+  habitInfo: { flex: 1, marginRight: 8 },
   habitNameRow: { flexDirection: 'row', alignItems: 'center' },
   habitName: { fontSize: 16, fontWeight: '500', color: '#f0f0f0' },
-  habitMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  habitMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
   starsMetaRow: { flexDirection: 'row', alignItems: 'center' },
   habitMeta: { fontSize: 12, color: '#888' },
   badText: { color: '#f87171' },
-  deleteBtn: { padding: 8 },
+  deleteBtn: { padding: 10, marginRight: -6 },
   deleteBtnText: { fontSize: 18 },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { color: '#555', fontSize: 16 },
   fab: {
     position: 'absolute',
-    bottom: 30,
     right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#6366f1',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
+    elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   fabText: { color: '#fff', fontSize: 28, lineHeight: 30 },
 });

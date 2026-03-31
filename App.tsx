@@ -25,8 +25,13 @@ export default function App() {
           headerShown: true,
           tabBarActiveTintColor: '#818cf8',
           tabBarInactiveTintColor: '#6b7280',
-          tabBarStyle: { paddingBottom: 4, height: 56 },
+          tabBarStyle: {
+            paddingTop: 4,
+            paddingBottom: 8,
+            height: 64,
+          },
           tabBarLabelStyle: { fontSize: 12, fontWeight: '500' },
+          tabBarIconStyle: { marginBottom: -2 },
         }}
       >
         <Tab.Screen

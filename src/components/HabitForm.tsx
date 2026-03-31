@@ -7,7 +7,10 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Habit, HabitType, Tier, ExtraRule } from '../models/types';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
@@ -77,7 +80,16 @@ export default function HabitForm({ habit, onSave, onCancel }: Props) {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.keyboardAvoid}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <Text style={styles.title}>{habit ? 'Edit Habit' : 'New Habit'}</Text>
 
       <Text style={styles.label}>Name</Text>
@@ -183,7 +195,7 @@ export default function HabitForm({ habit, onSave, onCancel }: Props) {
               <Text style={styles.inputSuffix} numberOfLines={1}>{unit}</Text>
             </View>
 
-            <Text style={styles.text}>=</Text>
+            <Text style={styles.tierArrow}>→</Text>
             
             <View style={[styles.input, styles.tierInput, styles.inputWithSuffix]}>
               <TextInput
@@ -264,73 +276,84 @@ export default function HabitForm({ habit, onSave, onCancel }: Props) {
         </>
       )}
 
-      <View style={[styles.row, { marginTop: 20 }]}>
-        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
+      <View style={[styles.row, { marginTop: 24, marginBottom: 16 }]}>
+        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} activeOpacity={0.7}>
           <Text style={styles.cancelBtnText}>Cancel</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.7}>
           <Text style={styles.saveBtnText}>Save</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#121212' },
+  keyboardAvoid: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: '#121212' },
+  contentContainer: { padding: 20, paddingBottom: 40 },
   title: { fontSize: 22, fontWeight: 'bold', marginBottom: 16, color: '#f0f0f0' },
-  label: { fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 4, color: '#9ca3af' },
+  label: { fontSize: 14, fontWeight: '600', marginTop: 14, marginBottom: 6, color: '#9ca3af' },
   input: {
     borderWidth: 1,
     borderColor: '#444',
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 10,
+    padding: 12,
     fontSize: 16,
     backgroundColor: '#1e1e1e',
     color: '#f0f0f0',
+    minHeight: 48,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 6 },
   typeBtnContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   typeBtn: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#444',
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   typeBtnActive: { borderColor: '#6366f1', backgroundColor: '#1e1b4b' },
-  typeBtnText: { fontSize: 14, color: '#9ca3af' },
+  typeBtnText: { fontSize: 13, color: '#9ca3af' },
   typeBtnTextActive: { color: '#818cf8', fontWeight: '600' },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },
   badgeText: { fontSize: 12 },
   goodBadge: { backgroundColor: '#14532d' },
   goodBadgeText: { color: '#4ade80' },
   badBadge: { backgroundColor: '#7f1d1d' },
   badBadgeText: { color: '#f87171' },
-  tierRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 4 },
+  tierRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 5 },
   tierInput: { flex: 1 },
   inputWithSuffix: { flexDirection: 'row', alignItems: 'center', padding: 0 },
-  innerInput: { flex: 1, padding: 10, fontSize: 16, color: '#f0f0f0' },
-  inputSuffix: { paddingRight: 10, fontSize: 14, color: '#555' },
+  innerInput: { flex: 1, padding: 12, fontSize: 16, color: '#f0f0f0' },
+  inputSuffix: { paddingRight: 12, fontSize: 14, color: '#555' },
   tierArrow: { fontSize: 18, color: '#9ca3af' },
   text: { color: '#f0f0f0' },
   saveBtn: {
     flex: 1,
     backgroundColor: '#6366f1',
-    padding: 14,
-    borderRadius: 8,
+    paddingVertical: 16,
+    borderRadius: 10,
     alignItems: 'center',
+    minHeight: 52,
+    justifyContent: 'center',
   },
   saveBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   cancelBtn: {
     flex: 1,
     backgroundColor: '#2a2a2a',
-    padding: 14,
-    borderRadius: 8,
+    paddingVertical: 16,
+    borderRadius: 10,
     alignItems: 'center',
+    minHeight: 52,
+    justifyContent: 'center',
   },
   cancelBtnText: { color: '#bbb', fontSize: 16 },
-  starsLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, marginBottom: 4 },
+  starsLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, marginBottom: 6 },
   starsLabel: { fontSize: 14, fontWeight: '600', color: '#9ca3af' },
 });

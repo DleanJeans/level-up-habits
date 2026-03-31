@@ -6,7 +6,9 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Habit, HabitLog } from '../models/types';
 import { getHabits, getLogsForDate, saveLog, formatDate } from '../store/storage';
@@ -14,6 +16,7 @@ import { calculateStars } from '../store/starCalculator';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function DailyLogScreen() {
+  const insets = useSafeAreaInsets();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<Map<string, HabitLog>>(new Map());
@@ -126,15 +129,15 @@ export default function DailyLogScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Date navigation */}
       <View style={styles.dateNav}>
-        <TouchableOpacity onPress={() => changeDate(-1)}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color="#818cf8" style={styles.dateArrow} />
+        <TouchableOpacity onPress={() => changeDate(-1)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <MaterialCommunityIcons name="chevron-left" size={32} color="#818cf8" style={styles.dateArrow} />
         </TouchableOpacity>
         <Text style={styles.dateText}>{formatDisplayDate(currentDate)}</Text>
-        <TouchableOpacity onPress={() => changeDate(1)}>
-          <MaterialCommunityIcons name="chevron-right" size={28} color="#818cf8" style={styles.dateArrow} />
+        <TouchableOpacity onPress={() => changeDate(1)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <MaterialCommunityIcons name="chevron-right" size={32} color="#818cf8" style={styles.dateArrow} />
         </TouchableOpacity>
       </View>
 
@@ -158,7 +161,8 @@ export default function DailyLogScreen() {
           data={habits}
           keyExtractor={(item) => item.id}
           renderItem={renderHabitItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: 24 + insets.bottom }]}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </View>
@@ -171,61 +175,66 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 16,
-    gap: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+    gap: 16,
   },
-  dateArrow: { padding: 8 },
+  dateArrow: { padding: 10 },
   totalValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dateText: { fontSize: 18, fontWeight: '600', color: '#f0f0f0' },
   totalBox: {
-    margin: 16,
-    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
+    padding: 14,
     backgroundColor: '#1c1a14',
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#ca8a04',
   },
-  totalLabel: { fontSize: 14, color: '#fde68a', fontWeight: '500' },
-  totalValue: { fontSize: 32, fontWeight: 'bold', color: '#fbbf24' },
+  totalLabel: { fontSize: 13, color: '#fde68a', fontWeight: '500' },
+  totalValue: { fontSize: 28, fontWeight: 'bold', color: '#fbbf24' },
   list: { paddingHorizontal: 16, paddingBottom: 20 },
   habitRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginVertical: 4,
     backgroundColor: '#0a2318',
-    borderRadius: 10,
+    borderRadius: 12,
+    minHeight: 64,
   },
   badRow: { backgroundColor: '#2d0707' },
-  habitInfo: { flex: 1 },
+  habitInfo: { flex: 1, marginRight: 12 },
   habitName: { fontSize: 16, fontWeight: '500', color: '#f0f0f0' },
   badText: { color: '#f87171' },
-  starRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  starRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
   starText: { fontSize: 13, color: '#4ade80' },
   negativeStars: { color: '#f87171' },
   checkbox: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
+    width: 44,
+    height: 44,
+    borderRadius: 8,
     borderWidth: 2,
     borderColor: '#555',
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxChecked: { backgroundColor: '#6366f1', borderColor: '#6366f1' },
-  checkboxText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  checkboxText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   stepBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#1e1b4b',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  stepBtnText: { fontSize: 20, color: '#818cf8', fontWeight: 'bold' },
-  stepValue: { fontSize: 16, fontWeight: '500', minWidth: 50, textAlign: 'center', color: '#f0f0f0' },
+  stepBtnText: { fontSize: 22, color: '#818cf8', fontWeight: 'bold' },
+  stepValue: { fontSize: 15, fontWeight: '500', minWidth: 56, textAlign: 'center', color: '#f0f0f0' },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { color: '#555', fontSize: 16, textAlign: 'center', paddingHorizontal: 40 },
 });
