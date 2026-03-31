@@ -21,6 +21,8 @@ export default function DailyLogScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<Map<string, HabitLog>>(new Map());
   const [totalStars, setTotalStars] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
 
   const dateStr = formatDate(currentDate);
 
@@ -48,6 +50,19 @@ export default function DailyLogScreen() {
       habitId: habit.id,
       date: dateStr,
       value: newValue,
+      starsEarned,
+    };
+    await saveLog(log);
+    loadData();
+  }
+
+  async function setNumeralValue(habit: Habit, newVal: number) {
+    const clamped = Math.max(0, newVal);
+    const starsEarned = calculateStars(habit, clamped);
+    const log: HabitLog = {
+      habitId: habit.id,
+      date: dateStr,
+      value: clamped,
       starsEarned,
     };
     await saveLog(log);
@@ -118,9 +133,38 @@ export default function DailyLogScreen() {
             <TouchableOpacity style={styles.stepBtn} onPress={() => updateNumeral(item, -1)}>
               <Text style={styles.stepBtnText}>−</Text>
             </TouchableOpacity>
-            <Text style={styles.stepValue}>
-              {typeof log?.value === 'number' ? log.value : 0} {item.unit || ''}
-            </Text>
+            {editingId === item.id ? (
+              <TextInput
+                style={styles.stepValueInput}
+                value={editDraft}
+                onChangeText={setEditDraft}
+                keyboardType="numeric"
+                autoFocus
+                selectTextOnFocus
+                onBlur={() => {
+                  const parsed = parseInt(editDraft, 10);
+                  setNumeralValue(item, isNaN(parsed) ? 0 : parsed);
+                  setEditingId(null);
+                }}
+                onSubmitEditing={() => {
+                  const parsed = parseInt(editDraft, 10);
+                  setNumeralValue(item, isNaN(parsed) ? 0 : parsed);
+                  setEditingId(null);
+                }}
+              />
+            ) : (
+              <TouchableOpacity
+                onPress={() => {
+                  const currentVal = typeof log?.value === 'number' ? log.value : 0;
+                  setEditDraft(String(currentVal));
+                  setEditingId(item.id);
+                }}
+              >
+                <Text style={styles.stepValue}>
+                  {typeof log?.value === 'number' ? log.value : 0}{item.unit ? ` ${item.unit}` : ''}
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={styles.stepBtn} onPress={() => updateNumeral(item, 1)}>
               <Text style={styles.stepBtnText}>+</Text>
             </TouchableOpacity>
@@ -237,6 +281,7 @@ const styles = StyleSheet.create({
   },
   stepBtnText: { fontSize: 22, color: '#818cf8', fontWeight: 'bold' },
   stepValue: { fontSize: 15, fontWeight: '500', minWidth: 56, textAlign: 'center', color: '#f0f0f0' },
+  stepValueInput: { fontSize: 15, fontWeight: '500', width: 40, flexGrow: 0, textAlign: 'center', color: '#f0f0f0', borderBottomWidth: 1, borderBottomColor: '#818cf8', paddingVertical: 2 },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { color: '#555', fontSize: 16, textAlign: 'center', paddingHorizontal: 40 },
 });
