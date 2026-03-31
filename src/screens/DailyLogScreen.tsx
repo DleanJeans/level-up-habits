@@ -95,6 +95,8 @@ export default function DailyLogScreen() {
       <View style={[styles.habitRow, isBad && styles.badRow]}>
         <View style={styles.habitInfo}>
           <Text style={[styles.habitName, isBad && styles.badText]}>{item.name}</Text>
+        </View>
+        {starsEarned !== 0 && (
           <View style={styles.starRow}>
             <Text style={[styles.starText, starsEarned < 0 && styles.negativeStars]}>
               {starsEarned > 0 ? '+' : ''}
@@ -102,7 +104,7 @@ export default function DailyLogScreen() {
             </Text>
             <MaterialCommunityIcons name="star" size={13} color="#facc15" />
           </View>
-        </View>
+        )}
 
         {item.type === 'checkbox' ? (
           <TouchableOpacity
@@ -210,7 +212,7 @@ const styles = StyleSheet.create({
   habitInfo: { flex: 1, marginRight: 12 },
   habitName: { fontSize: 16, fontWeight: '500', color: '#f0f0f0' },
   badText: { color: '#f87171' },
-  starRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
+  starRow: { flexDirection: 'row', alignItems: 'center', marginRight: 8 },
   starText: { fontSize: 13, color: '#4ade80' },
   negativeStars: { color: '#f87171' },
   checkbox: {
