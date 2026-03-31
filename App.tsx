@@ -5,7 +5,6 @@ import { DarkTheme, NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import DailyLogScreen from './src/screens/DailyLogScreen';
 import HabitsScreen from './src/screens/HabitsScreen';
-import StatsScreen from './src/screens/StatsScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -43,13 +42,6 @@ export default function App() {
           component={HabitsScreen}
           options={{
             tabBarIcon: () => <Text style={{ fontSize: 20 }}>⚡</Text>,
-          }}
-        />
-        <Tab.Screen
-          name="Stats"
-          component={StatsScreen}
-          options={{
-            tabBarIcon: () => <Text style={{ fontSize: 20 }}>📊</Text>,
           }}
         />
       </Tab.Navigator>
