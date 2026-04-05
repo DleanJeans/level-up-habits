@@ -1,9 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Habit, HabitLog } from '../models/types';
-import { getHabits, getLogsForDate, formatDate } from '../store/storage';
+import { getHabits, getLogsForDate, saveLog, formatDate } from '../store/storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import WebContainer from '../components/WebContainer';
 
@@ -29,6 +29,8 @@ export default function TimelineScreen() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [entries, setEntries] = useState<TimelineEntry[]>([]);
   const [totalStars, setTotalStars] = useState(0);
+  const [editingEntry, setEditingEntry] = useState<TimelineEntry | null>(null);
+  const [editTimeStr, setEditTimeStr] = useState('');
 
   const dateStr = formatDate(currentDate);
 
@@ -73,6 +75,32 @@ export default function TimelineScreen() {
     return ds;
   }
 
+  function openEditTime(entry: TimelineEntry) {
+    setEditingEntry(entry);
+    setEditTimeStr(formatTime(entry.time));
+  }
+
+  async function handleSaveTime() {
+    if (!editingEntry) return;
+    const match = editTimeStr.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) {
+      Alert.alert('Invalid time', 'Please enter time as HH:MM (e.g. 08:30)');
+      return;
+    }
+    const hours = parseInt(match[1], 10);
+    const mins = parseInt(match[2], 10);
+    if (hours > 23 || mins > 59) {
+      Alert.alert('Invalid time', 'Hours must be 0–23 and minutes 0–59');
+      return;
+    }
+    const newTime = new Date(editingEntry.time);
+    newTime.setHours(hours, mins, 0, 0);
+    const updatedLog: HabitLog = { ...editingEntry.log, loggedAt: newTime.toISOString() };
+    await saveLog(updatedLog);
+    setEditingEntry(null);
+    loadData();
+  }
+
   // Group entries by time segment
   const grouped = new Map<string, TimelineEntry[]>();
   for (const entry of entries) {
@@ -97,6 +125,35 @@ export default function TimelineScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Edit time modal */}
+      <Modal visible={!!editingEntry} transparent animationType="fade" onRequestClose={() => setEditingEntry(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.editModal}>
+            <Text style={styles.editModalTitle}>Edit Log Time</Text>
+            <Text style={styles.editModalHabit}>{editingEntry?.habit.name}</Text>
+            <TextInput
+              style={styles.timeInput}
+              value={editTimeStr}
+              onChangeText={setEditTimeStr}
+              placeholder="HH:MM"
+              placeholderTextColor="#555"
+              keyboardType="numbers-and-punctuation"
+              autoFocus
+              selectTextOnFocus
+              maxLength={5}
+            />
+            <View style={styles.editModalActions}>
+              <TouchableOpacity style={styles.editModalSave} onPress={handleSaveTime}>
+                <Text style={styles.editModalSaveText}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.editModalCancel} onPress={() => setEditingEntry(null)}>
+                <Text style={styles.editModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
@@ -119,7 +176,12 @@ export default function TimelineScreen() {
                       {i < grouped.get(seg)!.length - 1 && <View style={styles.line} />}
                     </View>
                     <View style={styles.entryContent}>
-                      <Text style={styles.entryTime}>{formatTime(entry.time)}</Text>
+                      <TouchableOpacity onPress={() => openEditTime(entry)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                        <View style={styles.entryTimeRow}>
+                          <Text style={styles.entryTime}>{formatTime(entry.time)}</Text>
+                          <MaterialCommunityIcons name="pencil-outline" size={11} color="#4b5563" style={styles.editIcon} />
+                        </View>
+                      </TouchableOpacity>
                       <Text
                         style={[
                           styles.entryName,
@@ -194,7 +256,9 @@ const styles = StyleSheet.create({
     minHeight: 30,
   },
   entryContent: { flex: 1, paddingLeft: 12, paddingBottom: 16 },
-  entryTime: { fontSize: 11, color: '#6b7280', marginBottom: 2 },
+  entryTimeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  entryTime: { fontSize: 11, color: '#6b7280' },
+  editIcon: { marginLeft: 4 },
   entryName: { fontSize: 15, fontWeight: '500', color: '#f0f0f0' },
   entryValue: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
   badText: { color: '#f87171' },
@@ -203,4 +267,19 @@ const styles = StyleSheet.create({
   negativeStars: { color: '#f87171' },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
   emptyText: { color: '#555', fontSize: 16, marginTop: 12 },
+  // Edit time modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+  editModal: { backgroundColor: '#1e1e1e', borderRadius: 16, padding: 24, width: 280, alignItems: 'center' },
+  editModalTitle: { fontSize: 18, fontWeight: '700', color: '#f0f0f0', marginBottom: 6 },
+  editModalHabit: { fontSize: 14, color: '#9ca3af', marginBottom: 16 },
+  timeInput: {
+    backgroundColor: '#2a2a2a', borderRadius: 8, padding: 12, fontSize: 24,
+    fontWeight: '600', color: '#f0f0f0', textAlign: 'center', width: 120,
+    borderWidth: 1, borderColor: '#444', marginBottom: 20,
+  },
+  editModalActions: { flexDirection: 'row', gap: 12 },
+  editModalSave: { backgroundColor: '#6366f1', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
+  editModalSaveText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  editModalCancel: { backgroundColor: '#2a2a2a', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 },
+  editModalCancelText: { color: '#9ca3af', fontWeight: '500', fontSize: 15 },
 });
