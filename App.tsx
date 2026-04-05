@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { DarkTheme, NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -21,19 +21,31 @@ const darkTheme = {
 };
 
 export default function App() {
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     <NavigationContainer theme={darkTheme}>
       <StatusBar style="light" />
       <Tab.Navigator
         screenOptions={{
+          tabBarPosition: isLandscape ? 'left' : 'bottom',
           headerShown: true,
-          tabBarActiveTintColor: '#818cf8',
-          tabBarInactiveTintColor: '#6b7280',
-          tabBarStyle: {
-            paddingTop: 4,
+          tabBarActiveTintColor: '#a5b4fc',
+          tabBarInactiveTintColor: '#4b5563',
+          tabBarItemStyle: isLandscape
+            ? { height: 64, justifyContent: 'center' }
+            : { height: 72, paddingVertical: 8 },
+          tabBarStyle: isLandscape ? {
+            width: Platform.OS === 'web' ? 200 : 80,
+            borderRightWidth: 1,
+            borderRightColor: '#2a2a2a',
+            borderTopWidth: 0,
+          } : {
+            paddingTop: 0,
             paddingBottom: 8,
-            height: 64,
+            height: 72,
             ...(Platform.OS === 'web' ? {
               maxWidth: 600,
               alignSelf: 'center' as const,
@@ -43,8 +55,8 @@ export default function App() {
               borderTopRightRadius: 0,
             } : {}),
           },
-          tabBarLabelStyle: { fontSize: 12, fontWeight: '500' },
-          tabBarIconStyle: { marginBottom: -2 },
+          tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+          tabBarIconStyle: isLandscape ? {} : { marginBottom: -2 },
           headerStyle: Platform.OS === 'web' ? {
             elevation: 0,
             shadowOpacity: 0,
