@@ -27,11 +27,13 @@ import {
   saveMoodLog,
   getMoodLogsForDate,
   deleteMoodLog,
+  saveHabit,
 } from '../store/storage';
 import { calculateStars } from '../store/starCalculator';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
 import WebContainer from '../components/WebContainer';
+import HabitForm from '../components/HabitForm';
 
 export default function DailyLogScreen() {
   const insets = useSafeAreaInsets();
@@ -53,6 +55,9 @@ export default function DailyLogScreen() {
   const [moodLogs, setMoodLogs] = useState<MoodLog[]>([]);
   // All habits (for cue matching)
   const [allHabits, setAllHabits] = useState<Habit[]>([]);
+  // Habit form
+  const [showForm, setShowForm] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
 
   const dateStr = formatDate(currentDate);
 
@@ -228,6 +233,13 @@ export default function DailyLogScreen() {
 
   async function handleDeleteTask(id: string) {
     await deleteTask(id, dateStr);
+    loadData();
+  }
+
+  async function handleSaveHabit(habit: Habit) {
+    await saveHabit(habit);
+    setShowForm(false);
+    setEditingHabit(null);
     loadData();
   }
 
@@ -520,6 +532,27 @@ export default function DailyLogScreen() {
           }
         />
       )}
+      <TouchableOpacity
+        style={[styles.fab, { bottom: 24 + insets.bottom }]}
+        onPress={() => {
+          setEditingHabit(null);
+          setShowForm(true);
+        }}
+        activeOpacity={0.8}
+      >
+        <MaterialCommunityIcons name="plus" size={28} color="#fff" />
+      </TouchableOpacity>
+
+      <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet">
+        <HabitForm
+          habit={editingHabit}
+          onSave={handleSaveHabit}
+          onCancel={() => {
+            setShowForm(false);
+            setEditingHabit(null);
+          }}
+        />
+      </Modal>
     </View>
     </WebContainer>
   );
@@ -707,6 +740,22 @@ const styles = StyleSheet.create({
   cueChipText: { fontSize: 12, color: '#c4b5fd' },
   cueChipArrow: { fontSize: 12, color: '#555' },
   cueChipHabit: { fontSize: 12, color: '#818cf8', fontWeight: '500' },
+  // FAB
+  fab: {
+    position: 'absolute',
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
   // Mood logs
   moodLogsSection: {
     marginHorizontal: 16,
