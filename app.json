@@ -19,13 +19,20 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.dleanjeans.leveluphabits"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c8c12214-78b8-46a7-a027-2c79327d4cb2"
+      }
+    },
+    "owner": "dleanjeans"
   }
 }
