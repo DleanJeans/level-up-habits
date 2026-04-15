@@ -273,27 +273,31 @@ export default function DailyLogScreen() {
       <View style={styles.habitRow}>
         <View style={styles.habitInfo}>
           <Text style={styles.habitName}>{item.name}</Text>
-          {(item.type === 'checkbox' || item.type === 'time-based') && log?.value === true && log.loggedAt && (
-            <TouchableOpacity
-              onPress={() => setEditingLog({ habit: item, log: log! })}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <View style={styles.completedTimeRow}>
-                <Text style={styles.completedTime}>
-                  {new Date(log.loggedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-                <MaterialCommunityIcons name="pencil-outline" size={11} color="#4b5563" />
-              </View>
-            </TouchableOpacity>
-          )}
         </View>
-        {starsEarned !== 0 && (
-          <View style={styles.starRow}>
-            <Text style={[styles.starText, starsEarned < 0 && styles.negativeStars]}>
-              {starsEarned > 0 ? '+' : ''}
-              {starsEarned.toFixed(2).replace(/\.?0+$/, '')}
-            </Text>
-            <MaterialCommunityIcons name="star" size={13} color="#facc15" />
+        {(starsEarned !== 0 || ((item.type === 'checkbox' || item.type === 'time-based') && log?.value === true && log?.loggedAt)) && (
+          <View style={styles.starCol}>
+            {starsEarned !== 0 && (
+              <View style={styles.starRow}>
+                <Text style={[styles.starText, starsEarned < 0 && styles.negativeStars]}>
+                  {starsEarned > 0 ? '+' : ''}
+                  {starsEarned.toFixed(2).replace(/\.?0+$/, '')}
+                </Text>
+                <MaterialCommunityIcons name="star" size={13} color="#facc15" />
+              </View>
+            )}
+            {(item.type === 'checkbox' || item.type === 'time-based') && log?.value === true && log?.loggedAt && (
+              <TouchableOpacity
+                onPress={() => setEditingLog({ habit: item, log: log! })}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <View style={styles.completedTimeRow}>
+                  <Text style={styles.completedTime}>
+                    {new Date(log.loggedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                  <MaterialCommunityIcons name="pencil-outline" size={11} color="#4b5563" />
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -605,7 +609,8 @@ const styles = StyleSheet.create({
   completedTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   completedTime: { fontSize: 11, color: '#6b7280', marginTop: 2 },
   badText: { color: '#f87171' },
-  starRow: { flexDirection: 'row', alignItems: 'center', marginRight: 8 },
+  starCol: { alignItems: 'center', marginRight: 8, gap: 3 },
+  starRow: { flexDirection: 'row', alignItems: 'center' },
   starText: { fontSize: 13, color: '#4ade80' },
   negativeStars: { color: '#f87171' },
   checkbox: {
