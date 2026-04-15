@@ -3,6 +3,7 @@ name: EAS APK Build
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
