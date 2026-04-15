@@ -5,7 +5,7 @@ import { DarkTheme, NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import DailyLogScreen from './src/screens/DailyLogScreen';
+import DailyLogScreen from './src/screens/DailyScreen';
 import HabitsScreen from './src/screens/HabitsScreen';
 import TimelineScreen from './src/screens/TimelineScreen';
 import StatsScreen from './src/screens/StatsScreen';
