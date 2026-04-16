@@ -14,10 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: '24'
+          cache: 'pnpm'
 
       - name: Setup Expo
         uses: expo/expo-github-action@v8
@@ -26,23 +30,29 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Send OTA Update
-        run: eas update --branch preview --message "PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+        run: |
+          eas update --branch preview --message "PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
 
   local-build:
     name: Build APK Locally
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: '24'
+          cache: 'pnpm'
 
       - name: Setup Expo
         uses: expo/expo-github-action@v8
@@ -51,7 +61,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -61,7 +71,29 @@ jobs:
 
       - name: Upload APK to GitHub Artifacts
         uses: actions/upload-artifact@v4
+        id: upload-artifact
         with:
           name: android-preview-apk
           path: ./build-output.apk
           retention-days: 30
+
+      - name: Comment PR with artifact URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifactUrl = `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const comment = `### 📦 Android APK Build Complete
+
+            The preview APK has been built successfully!
+
+            **[Download APK from Artifacts](${artifactUrl})**
+
+            The artifact will be available for 30 days.`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
