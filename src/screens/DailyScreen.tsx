@@ -357,7 +357,7 @@ export default function DailyLogScreen() {
           <Text style={styles.habitName}>{item.name}</Text>
           {isAppCheckIn && appCheckInCooldown > 0 && (
             <Text style={styles.cooldownText}>
-              Next check-in in: {formatCooldown(appCheckInCooldown)}
+              Next reward in: {formatCooldown(appCheckInCooldown)}
             </Text>
           )}
         </View>
