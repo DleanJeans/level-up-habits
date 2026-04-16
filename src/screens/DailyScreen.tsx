@@ -85,6 +85,12 @@ export default function DailyLogScreen() {
     setAllHabits(h);
     // Filter to daily good habits only (bad habits and non-daily habits don't show on daily view)
     const dailyHabits = h.filter((habit) => (habit.frequency || 'daily') === 'daily' && habit.isGood !== false);
+    // Sort habits: auto-habits first, then others
+    dailyHabits.sort((a, b) => {
+      if (a.isAutoHabit && !b.isAutoHabit) return -1;
+      if (!a.isAutoHabit && b.isAutoHabit) return 1;
+      return 0;
+    });
     setHabits(dailyHabits);
     const logMap = new Map<string, HabitLog>();
     l.forEach((log) => logMap.set(log.habitId, log));

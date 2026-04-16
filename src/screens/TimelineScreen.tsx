@@ -166,12 +166,18 @@ export default function TimelineScreen() {
                       {i < grouped.get(seg)!.length - 1 && <View style={styles.line} />}
                     </View>
                     <View style={styles.entryContent}>
-                      <TouchableOpacity onPress={() => openEditTime(entry)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                      {!entry.habit.isAutoHabit ? (
+                        <TouchableOpacity onPress={() => openEditTime(entry)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                          <View style={styles.entryTimeRow}>
+                            <Text style={styles.entryTime}>{formatTime(entry.time)}</Text>
+                            <MaterialCommunityIcons name="pencil-outline" size={11} color="#4b5563" style={styles.editIcon} />
+                          </View>
+                        </TouchableOpacity>
+                      ) : (
                         <View style={styles.entryTimeRow}>
                           <Text style={styles.entryTime}>{formatTime(entry.time)}</Text>
-                          <MaterialCommunityIcons name="pencil-outline" size={11} color="#4b5563" style={styles.editIcon} />
                         </View>
-                      </TouchableOpacity>
+                      )}
                       <Text
                         style={[
                           styles.entryName,

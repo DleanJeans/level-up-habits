@@ -221,6 +221,7 @@ export async function ensureAutoHabits(): Promise<void> {
       isGood: true,
       stars: 1,
       unit: 'check-ins',
+      conversion: { per: 1, stars: 1 }, // 1 check-in = 1 star
       isAutoHabit: true,
       cooldownMinutes: 15,
       frequency: 'daily',
