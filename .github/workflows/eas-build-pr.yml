@@ -40,7 +40,7 @@ jobs:
           eas update --branch preview --message "PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
 
   local-build:
-    name: Build APK Locally
+    name: Build and Upload APK
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -72,17 +72,21 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Build APK locally
-        run: eas build --platform android --profile preview --local --non-interactive --output ./build-output.apk
+      - name: Build APK
+        id: build
+        run: |
+          eas build --platform android --profile preview --local --non-interactive --output ./build-output.apk
+          echo "apk-path=./build-output.apk" >> $GITHUB_OUTPUT
 
-      - name: Upload APK to GitHub Artifacts
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         id: upload-artifact
         with:
-          name: android-preview-apk
-          path: ./build-output.apk
+          name: android-preview-apk.apk
+          path: ${{ steps.build.outputs.apk-path }}
           retention-days: 30
           compression-level: 0
+          if-no-files-found: error
 
       - name: Comment PR with artifact URL
         if: github.event_name == 'pull_request'
