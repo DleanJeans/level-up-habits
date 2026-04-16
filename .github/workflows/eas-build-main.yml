@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      npm_config_user_agent: pnpm
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +44,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      npm_config_user_agent: pnpm
     steps:
       - uses: actions/checkout@v4
 

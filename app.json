@@ -3,6 +3,7 @@
     "name": "level-up-habits",
     "slug": "level-up-habits",
     "version": "0.0.1",
+    "scheme": "exp+level-up-habits",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

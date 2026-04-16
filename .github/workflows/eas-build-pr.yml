@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      npm_config_user_agent: pnpm
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +45,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      npm_config_user_agent: pnpm
     steps:
       - uses: actions/checkout@v4
 
@@ -76,6 +82,7 @@ jobs:
           name: android-preview-apk
           path: ./build-output.apk
           retention-days: 30
+          compression-level: 0
 
       - name: Comment PR with artifact URL
         if: github.event_name == 'pull_request'
