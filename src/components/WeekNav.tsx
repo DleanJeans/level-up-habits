@@ -116,7 +116,7 @@ export default function WeekNav({ currentDate, onChangeDate, onResetToToday }: W
     onChangeDate(day.date);
   }
 
-  const dayCardWidth = 55; // Fixed width for each day card
+  const dayCardWidth = 45; // Fixed width for each day card to fit 7 on screen
 
   return (
     <View style={styles.container}>
@@ -193,8 +193,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingHorizontal: 12,
+    gap: 6,
   },
   dateInfoContainer: {
     paddingHorizontal: 16,
@@ -207,14 +207,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   dayCard: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
     backgroundColor: '#1a1a2e',
-    borderRadius: 10,
+    borderRadius: 8,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
-    minHeight: 80,
+    minHeight: 70,
     justifyContent: 'center',
   },
   dayCardSelected: {
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     borderColor: '#ca8a04',
   },
   dayOfWeek: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
     color: '#9ca3af',
     marginBottom: 1,
@@ -238,10 +238,10 @@ const styles = StyleSheet.create({
     color: '#fde68a',
   },
   dayNum: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#f0f0f0',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   dayNumSelected: {
     color: '#fff',
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   starsText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '500',
     color: '#ca8a04',
   },
