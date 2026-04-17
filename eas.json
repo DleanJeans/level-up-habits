@@ -7,12 +7,16 @@
       "android": {
         "buildType": "apk"
       },
-      "channel": "preview"
+      "channel": "preview",
+      "node": "24",
+      "packageManager": "pnpm"
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
-      }
+      },
+      "node": "24",
+      "packageManager": "pnpm"
     }
   },
   "submit": {
