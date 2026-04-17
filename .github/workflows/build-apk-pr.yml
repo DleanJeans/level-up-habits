@@ -1,0 +1,110 @@
+name: Build APK for PRs
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      npm_config_user_agent: pnpm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build APK with EAS
+        run: |
+          eas build --platform android --profile preview --local \
+            --non-interactive --output app-release.apk
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-pr-${{ github.event.pull_request.number }}
+          path: app-release.apk
+          retention-days: 30
+
+  upload-artifact:
+    name: Upload to GitHub Artifacts
+    needs: build-apk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Comment PR with Artifact Download Link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const runId = context.runId;
+            const repo = context.repo;
+
+            // Get the list of artifacts for this workflow run
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: repo.owner,
+              repo: repo.repo,
+              run_id: runId,
+            });
+
+            const apkArtifact = artifacts.data.artifacts.find(artifact =>
+              artifact.name.startsWith('app-release-pr-')
+            );
+
+            if (!apkArtifact) {
+              console.log('No APK artifact found');
+              return;
+            }
+
+            // Construct the direct download URL
+            const downloadUrl = `https://github.com/${repo.owner}/${repo.repo}/actions/runs/${runId}/artifacts/${apkArtifact.id}`;
+
+            const comment = `### 📦 APK Build Complete
+
+            Your Android APK has been built successfully!
+
+            **[⬇️ Download APK](${downloadUrl})**
+
+            Build details:
+            - Artifact: \`${apkArtifact.name}\`
+            - Size: ${(apkArtifact.size_in_bytes / (1024 * 1024)).toFixed(2)} MB
+            - Expires: ${new Date(apkArtifact.expires_at).toLocaleDateString()}
+
+            > Note: You need to be logged into GitHub to download the artifact.`;
+
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: repo.owner,
+              repo: repo.repo,
+              body: comment
+            });
