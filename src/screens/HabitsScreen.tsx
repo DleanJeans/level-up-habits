@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   Modal,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Habit } from '../models/types';
 import { getHabits, saveHabit, deleteHabit } from '../store/storage';
 import HabitForm from '../components/HabitForm';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import WebContainer from '../components/WebContainer';
 
@@ -21,6 +21,8 @@ export default function HabitsScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const loadHabits = useCallback(async () => {
     const h = await getHabits();
@@ -41,17 +43,28 @@ export default function HabitsScreen() {
   }
 
   function handleDelete(habit: Habit) {
-    Alert.alert('Delete Habit', `Delete "${habit.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteHabit(habit.id);
-          loadHabits();
-        },
-      },
-    ]);
+    setHabitToDelete(habit);
+    setShowDeleteDialog(true);
+  }
+
+  async function confirmDelete() {
+    if (habitToDelete) {
+      await deleteHabit(habitToDelete.id);
+      setShowDeleteDialog(false);
+      // Wait for fade animation to complete before clearing habitToDelete
+      setTimeout(() => {
+        setHabitToDelete(null);
+      }, 300); // Match the fade animation duration
+      loadHabits();
+    }
+  }
+
+  function cancelDelete() {
+    setShowDeleteDialog(false);
+    // Wait for fade animation to complete before clearing habitToDelete
+    setTimeout(() => {
+      setHabitToDelete(null);
+    }, 300); // Match the fade animation duration
   }
 
   function handleEdit(habit: Habit) {
@@ -161,6 +174,17 @@ export default function HabitsScreen() {
           }}
         />
       </Modal>
+
+      <ConfirmDialog
+        visible={showDeleteDialog}
+        title={`Delete Habit: ${habitToDelete ? habitToDelete.name : ''}`}
+        message="This cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        destructive
+      />
     </View>
     </WebContainer>
   );
