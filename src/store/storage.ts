@@ -17,7 +17,30 @@ export interface Settings {
 
 export async function getHabits(): Promise<Habit[]> {
   const json = await AsyncStorage.getItem(HABITS_KEY);
-  return json ? JSON.parse(json) : [];
+  if (!json) return [];
+
+  const habits: Habit[] = JSON.parse(json);
+
+  // Migration: convert old isGood boolean to category
+  let needsMigration = false;
+  habits.forEach((habit) => {
+    if (!habit.category && habit.isGood !== undefined) {
+      habit.category = habit.isGood ? 'good' : 'bad';
+      needsMigration = true;
+    }
+    // Ensure category has a default value if both are missing
+    if (!habit.category) {
+      habit.category = 'good';
+      needsMigration = true;
+    }
+  });
+
+  // Save migrated data if needed
+  if (needsMigration) {
+    await AsyncStorage.setItem(HABITS_KEY, JSON.stringify(habits));
+  }
+
+  return habits;
 }
 
 export async function saveHabit(habit: Habit): Promise<void> {
@@ -288,4 +311,83 @@ export async function importAllData(data: ExportData): Promise<void> {
 export async function clearAllData(): Promise<void> {
   const allKeys = await AsyncStorage.getAllKeys();
   await AsyncStorage.multiRemove(allKeys);
+}
+// --- Auto-Habits ---
+
+const APP_CHECK_IN_ID = 'auto-habit-app-check-in';
+
+export async function ensureAutoHabits(): Promise<void> {
+  const habits = await getHabits();
+  const existingAppCheckIn = habits.find((h) => h.id === APP_CHECK_IN_ID);
+
+  const appCheckInHabit: Habit = {
+    id: APP_CHECK_IN_ID,
+    name: 'App Check-in',
+    type: 'numeral',
+    category: 'good',
+    stars: 1,
+    unit: 'check-ins',
+    conversion: { per: 1, stars: 1 }, // 1 check-in = 1 star
+    isAutoHabit: true,
+    cooldownMinutes: 15,
+    frequency: 'daily',
+  };
+
+  if (!existingAppCheckIn) {
+    // Create new App Check-in habit if it doesn't exist
+    await saveHabit(appCheckInHabit);
+  } else {
+    // Always ensure critical fields match the canonical definition so that any
+    // drift (e.g. missing conversion, wrong type, old isGood-only migration)
+    // is corrected on the next app launch.
+    const needsUpdate =
+      existingAppCheckIn.type !== appCheckInHabit.type ||
+      !existingAppCheckIn.conversion ||
+      existingAppCheckIn.conversion.per !== appCheckInHabit.conversion!.per ||
+      existingAppCheckIn.conversion.stars !== appCheckInHabit.conversion!.stars ||
+      existingAppCheckIn.category !== appCheckInHabit.category ||
+      !existingAppCheckIn.cooldownMinutes;
+    if (needsUpdate) {
+      await saveHabit({ ...existingAppCheckIn, ...appCheckInHabit });
+    }
+  }
+}
+
+export function getAppCheckInHabitId(): string {
+  return APP_CHECK_IN_ID;
+}
+
+export async function canLogAppCheckIn(date: string): Promise<boolean> {
+  const logs = await getLogsForDate(date);
+  const checkInLog = logs.find((l) => l.habitId === APP_CHECK_IN_ID);
+
+  if (!checkInLog || !checkInLog.loggedAt) {
+    return true;
+  }
+
+  const lastLogTime = new Date(checkInLog.loggedAt).getTime();
+  const now = Date.now();
+  const cooldownMs = 15 * 60 * 1000; // 15 minutes in milliseconds
+
+  return now - lastLogTime >= cooldownMs;
+}
+
+export async function getAppCheckInCooldownRemaining(date: string): Promise<number> {
+  const logs = await getLogsForDate(date);
+  const checkInLog = logs.find((l) => l.habitId === APP_CHECK_IN_ID);
+
+  if (!checkInLog || !checkInLog.loggedAt) {
+    return 0;
+  }
+
+  const lastLogTime = new Date(checkInLog.loggedAt).getTime();
+  const now = Date.now();
+  const cooldownMs = 15 * 60 * 1000; // 15 minutes in milliseconds
+  const elapsed = now - lastLogTime;
+
+  if (elapsed >= cooldownMs) {
+    return 0;
+  }
+
+  return Math.ceil((cooldownMs - elapsed) / 1000); // Return seconds remaining
 }

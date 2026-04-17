@@ -1,5 +1,7 @@
 export type HabitType = 'checkbox' | 'numeral' | 'tiered' | 'time-based';
 
+export type HabitCategory = 'good' | 'bad' | 'neutral';
+
 export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface Tier {
@@ -48,7 +50,10 @@ export interface Habit {
   id: string;
   name: string;
   type: HabitType;
-  isGood: boolean;
+  /** Category: good (positive stars), bad (negative stars), or neutral (tracking only, 0 stars) */
+  category: HabitCategory;
+  /** @deprecated Legacy field, use category instead */
+  isGood?: boolean;
   /** Fixed stars for checkbox habits */
   stars: number;
   /** Unit label for numeral/tiered habits (e.g. "mins", "sets") */
@@ -71,6 +76,10 @@ export interface Habit {
   cues?: Cue[];
   /** Reminders linked to other habits */
   reminders?: Reminder[];
+  /** Auto-habits are automatically tracked (e.g., app check-in) */
+  isAutoHabit?: boolean;
+  /** Cooldown period in minutes for auto-habits */
+  cooldownMinutes?: number;
 }
 
 export interface HabitLog {
