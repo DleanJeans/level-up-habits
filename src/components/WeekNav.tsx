@@ -20,6 +20,28 @@ interface DayInfo {
   stars: number;
 }
 
+// Get ISO week number
+function getWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+// Format full date like "Monday, January 1, 2024"
+function formatFullDate(date: Date): string {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  const dayName = days[date.getDay()];
+  const monthName = months[date.getMonth()];
+  const dayNum = date.getDate();
+  const year = date.getFullYear();
+
+  return `${dayName}, ${monthName} ${dayNum}, ${year}`;
+}
+
 // Always start week on Monday
 function getWeekDays(selectedDate: Date): DayInfo[] {
   const today = new Date();
@@ -67,6 +89,16 @@ function getWeekDays(selectedDate: Date): DayInfo[] {
 
 export default function WeekNav({ currentDate, onChangeDate, onResetToToday }: WeekNavProps) {
   const { width: windowWidth } = useWindowDimensions();
+  // Track the week being displayed separately from the selected date
+  const [displayWeekStart, setDisplayWeekStart] = useState<Date>(() => {
+    const date = new Date(currentDate);
+    const currentDay = date.getDay();
+    let daysToSubtract = currentDay - 1;
+    if (daysToSubtract < 0) daysToSubtract += 7;
+    date.setDate(date.getDate() - daysToSubtract);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  });
   const [weekDays, setWeekDays] = useState<DayInfo[]>(() => getWeekDays(currentDate));
   const [nextWeekDays, setNextWeekDays] = useState<DayInfo[]>([]);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -84,27 +116,45 @@ export default function WeekNav({ currentDate, onChangeDate, onResetToToday }: W
       setWeekDays(daysWithStars);
     }
     loadStars();
+
+    // Update displayed week when currentDate changes
+    const date = new Date(currentDate);
+    const currentDay = date.getDay();
+    let daysToSubtract = currentDay - 1;
+    if (daysToSubtract < 0) daysToSubtract += 7;
+    date.setDate(date.getDate() - daysToSubtract);
+    date.setHours(0, 0, 0, 0);
+    setDisplayWeekStart(date);
   }, [currentDate]);
 
-  function changeWeek(delta: number) {
+  async function changeWeek(delta: number) {
     if (isAnimating) return;
 
     setIsAnimating(true);
 
-    // Prepare the next week's data immediately
-    const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() + delta * 7);
-    const nextDays = getWeekDays(newDate);
+    // Calculate the new week start date
+    const newWeekStart = new Date(displayWeekStart);
+    newWeekStart.setDate(displayWeekStart.getDate() + delta * 7);
 
-    // Load stars for next week asynchronously
-    Promise.all(
+    // Create a date in the new week to generate the week days
+    const dateInNewWeek = new Date(newWeekStart);
+    dateInNewWeek.setDate(newWeekStart.getDate() + 3); // Use middle of week
+
+    // Prepare the next week's data
+    const nextDays = getWeekDays(dateInNewWeek);
+
+    // Load stars for next week synchronously to avoid timing issues
+    const daysWithStars = await Promise.all(
       nextDays.map(async (day) => ({
         ...day,
         stars: await getDayTotal(day.dateStr),
       }))
-    ).then((daysWithStars) => {
-      setNextWeekDays(daysWithStars);
-    });
+    );
+
+    setNextWeekDays(daysWithStars);
+
+    // Wait a tiny bit to ensure state is updated before animation
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Continuous slide animation with both weeks visible
     const containerPadding = 32;
@@ -119,8 +169,10 @@ export default function WeekNav({ currentDate, onChangeDate, onResetToToday }: W
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
-      // Update the date after animation completes
-      onChangeDate(newDate);
+      // Update the displayed week after animation completes
+      setDisplayWeekStart(newWeekStart);
+      // Update the week days to show the new week
+      setWeekDays(daysWithStars);
       slideAnim.setValue(0);
       setNextWeekDays([]);
       setIsAnimating(false);
@@ -276,6 +328,13 @@ export default function WeekNav({ currentDate, onChangeDate, onResetToToday }: W
           </Animated.View>
         </View>
       </GestureDetector>
+
+      {/* Date information display */}
+      <View style={styles.dateInfoContainer}>
+        <Text style={styles.dateInfoText}>
+          {formatFullDate(currentDate)} • Week {getWeekNumber(currentDate)}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -297,6 +356,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 8,
+  },
+  dateInfoContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    alignItems: 'center',
+  },
+  dateInfoText: {
+    fontSize: 14,
+    color: '#9ca3af',
+    fontWeight: '500',
   },
   dayCard: {
     flex: 1,
