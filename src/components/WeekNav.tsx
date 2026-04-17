@@ -104,13 +104,13 @@ export default function WeekNav({ currentDate, onChangeDate, onResetToToday }: W
     );
   }, [currentDate]);
 
-  // Scroll to the end (today) when component mounts or days change
+  // Scroll to the end (today) only when component mounts
   useEffect(() => {
     const timer = setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: false });
     }, 100);
     return () => clearTimeout(timer);
-  }, [days]);
+  }, []); // Only run on mount
 
   function selectDay(day: DayInfo) {
     onChangeDate(day.date);
