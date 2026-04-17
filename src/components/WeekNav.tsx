@@ -98,22 +98,6 @@ export default function WeekNav({ currentDate, onChangeDate }: WeekNavProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => changeWeek(-1)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <MaterialCommunityIcons name="chevron-left" size={28} color="#818cf8" />
-        </TouchableOpacity>
-        <Text style={styles.headerText}>Week View</Text>
-        <TouchableOpacity
-          onPress={() => changeWeek(1)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <MaterialCommunityIcons name="chevron-right" size={28} color="#818cf8" />
-        </TouchableOpacity>
-      </View>
-
       <GestureDetector gesture={swipeGesture}>
         <ScrollView
           ref={scrollViewRef}
