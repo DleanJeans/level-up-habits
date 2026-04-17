@@ -234,22 +234,38 @@ const APP_CHECK_IN_ID = 'auto-habit-app-check-in';
 
 export async function ensureAutoHabits(): Promise<void> {
   const habits = await getHabits();
-  const hasAppCheckIn = habits.some((h) => h.id === APP_CHECK_IN_ID);
+  const existingAppCheckIn = habits.find((h) => h.id === APP_CHECK_IN_ID);
 
-  if (!hasAppCheckIn) {
-    const appCheckInHabit: Habit = {
-      id: APP_CHECK_IN_ID,
-      name: 'App Check-in',
-      type: 'numeral',
-      category: 'good',
-      stars: 1,
-      unit: 'check-ins',
-      conversion: { per: 1, stars: 1 }, // 1 check-in = 1 star
-      isAutoHabit: true,
-      cooldownMinutes: 15,
-      frequency: 'daily',
-    };
+  const appCheckInHabit: Habit = {
+    id: APP_CHECK_IN_ID,
+    name: 'App Check-in',
+    type: 'numeral',
+    category: 'good',
+    stars: 1,
+    unit: 'check-ins',
+    conversion: { per: 1, stars: 1 }, // 1 check-in = 1 star
+    isAutoHabit: true,
+    cooldownMinutes: 15,
+    frequency: 'daily',
+  };
+
+  if (!existingAppCheckIn) {
+    // Create new App Check-in habit if it doesn't exist
     await saveHabit(appCheckInHabit);
+  } else {
+    // Always ensure critical fields match the canonical definition so that any
+    // drift (e.g. missing conversion, wrong type, old isGood-only migration)
+    // is corrected on the next app launch.
+    const needsUpdate =
+      existingAppCheckIn.type !== appCheckInHabit.type ||
+      !existingAppCheckIn.conversion ||
+      existingAppCheckIn.conversion.per !== appCheckInHabit.conversion!.per ||
+      existingAppCheckIn.conversion.stars !== appCheckInHabit.conversion!.stars ||
+      existingAppCheckIn.category !== appCheckInHabit.category ||
+      !existingAppCheckIn.cooldownMinutes;
+    if (needsUpdate) {
+      await saveHabit({ ...existingAppCheckIn, ...appCheckInHabit });
+    }
   }
 }
 
