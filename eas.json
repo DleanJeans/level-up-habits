@@ -8,15 +8,13 @@
         "buildType": "apk"
       },
       "channel": "preview",
-      "node": "22",
-      "packageManager": "pnpm"
+      "node": "22.22.2"
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
       },
-      "node": "22",
-      "packageManager": "pnpm"
+      "node": "22.22.2"
     }
   },
   "submit": {
