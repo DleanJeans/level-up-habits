@@ -167,8 +167,8 @@ export default function HabitsScreen() {
 
       <ConfirmDialog
         visible={!!habitToDelete}
-        title="Delete Habit"
-        message={habitToDelete ? `Delete "${habitToDelete.name}"?` : ''}
+        title={`Delete Habit: ${habitToDelete ? habitToDelete.name : ''}`}
+        message="This cannot be undone."
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={confirmDelete}
