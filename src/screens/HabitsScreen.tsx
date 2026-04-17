@@ -7,6 +7,7 @@ import {
   Alert,
   StyleSheet,
   Modal,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,17 +42,25 @@ export default function HabitsScreen() {
   }
 
   function handleDelete(habit: Habit) {
-    Alert.alert('Delete Habit', `Delete "${habit.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteHabit(habit.id);
-          loadHabits();
+    if (Platform.OS === 'web') {
+      // Use window.confirm for web platform since Alert.alert is not supported
+      if (window.confirm(`Delete "${habit.name}"?`)) {
+        deleteHabit(habit.id).then(() => loadHabits());
+      }
+    } else {
+      // Use native Alert for iOS and Android
+      Alert.alert('Delete Habit', `Delete "${habit.name}"?`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteHabit(habit.id);
+            loadHabits();
+          },
         },
-      },
-    ]);
+      ]);
+    }
   }
 
   function handleEdit(habit: Habit) {
