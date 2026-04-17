@@ -22,6 +22,7 @@ export default function HabitsScreen() {
   const [showForm, setShowForm] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const loadHabits = useCallback(async () => {
     const h = await getHabits();
@@ -43,18 +44,27 @@ export default function HabitsScreen() {
 
   function handleDelete(habit: Habit) {
     setHabitToDelete(habit);
+    setShowDeleteDialog(true);
   }
 
   async function confirmDelete() {
     if (habitToDelete) {
       await deleteHabit(habitToDelete.id);
-      setHabitToDelete(null);
+      setShowDeleteDialog(false);
+      // Wait for fade animation to complete before clearing habitToDelete
+      setTimeout(() => {
+        setHabitToDelete(null);
+      }, 300); // Match the fade animation duration
       loadHabits();
     }
   }
 
   function cancelDelete() {
-    setHabitToDelete(null);
+    setShowDeleteDialog(false);
+    // Wait for fade animation to complete before clearing habitToDelete
+    setTimeout(() => {
+      setHabitToDelete(null);
+    }, 300); // Match the fade animation duration
   }
 
   function handleEdit(habit: Habit) {
@@ -166,7 +176,7 @@ export default function HabitsScreen() {
       </Modal>
 
       <ConfirmDialog
-        visible={!!habitToDelete}
+        visible={showDeleteDialog}
         title={`Delete Habit: ${habitToDelete ? habitToDelete.name : ''}`}
         message="This cannot be undone."
         confirmText="Delete"

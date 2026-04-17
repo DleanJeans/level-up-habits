@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, TouchableWithoutFeedback, StyleSheet } from 'react-native';
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -29,31 +29,35 @@ export default function ConfirmDialog({
       animationType="fade"
       onRequestClose={onCancel}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={onCancel}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelText}>{cancelText}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.confirmBtn,
-                destructive && styles.destructiveBtn,
-              ]}
-              onPress={onConfirm}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.confirmText}>{confirmText}</Text>
-            </TouchableOpacity>
-          </View>
+      <TouchableWithoutFeedback onPress={onCancel}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalContent}>
+              <Text style={styles.title}>{title}</Text>
+              <Text style={styles.message}>{message}</Text>
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={styles.cancelBtn}
+                  onPress={onCancel}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.cancelText}>{cancelText}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    destructive && styles.destructiveBtn,
+                  ]}
+                  onPress={onConfirm}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.confirmText}>{confirmText}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 }
