@@ -68,9 +68,9 @@ function getWeekDays(selectedDate: Date): DayInfo[] {
 export default function WeekNav({ currentDate, onChangeDate, onResetToToday }: WeekNavProps) {
   const { width: windowWidth } = useWindowDimensions();
   const [weekDays, setWeekDays] = useState<DayInfo[]>(() => getWeekDays(currentDate));
+  const [nextWeekDays, setNextWeekDays] = useState<DayInfo[]>([]);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [isAnimating, setIsAnimating] = useState(false);
-  const [animationDirection, setAnimationDirection] = useState<'left' | 'right' | null>(null);
 
   useEffect(() => {
     async function loadStars() {
@@ -90,37 +90,40 @@ export default function WeekNav({ currentDate, onChangeDate, onResetToToday }: W
     if (isAnimating) return;
 
     setIsAnimating(true);
-    const direction = delta > 0 ? 'left' : 'right';
-    setAnimationDirection(direction);
 
-    // Full slide-in animation: slide out current, slide in new
-    const slideDistance = windowWidth;
+    // Prepare the next week's data immediately
+    const newDate = new Date(currentDate);
+    newDate.setDate(currentDate.getDate() + delta * 7);
+    const nextDays = getWeekDays(newDate);
 
-    Animated.sequence([
-      // Slide out current week
-      Animated.timing(slideAnim, {
-        toValue: delta > 0 ? -slideDistance : slideDistance,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Update the week immediately
-      const newDate = new Date(currentDate);
-      newDate.setDate(currentDate.getDate() + delta * 7);
+    // Load stars for next week asynchronously
+    Promise.all(
+      nextDays.map(async (day) => ({
+        ...day,
+        stars: await getDayTotal(day.dateStr),
+      }))
+    ).then((daysWithStars) => {
+      setNextWeekDays(daysWithStars);
+    });
+
+    // Continuous slide animation with both weeks visible
+    const containerPadding = 32;
+    const gap = 8;
+    const totalGaps = 6 * gap;
+    const maxWidth = 600;
+    const effectiveWidth = Math.min(windowWidth - containerPadding, maxWidth);
+    const slideDistance = effectiveWidth + 16; // Include padding between weeks
+
+    Animated.timing(slideAnim, {
+      toValue: delta > 0 ? -slideDistance : slideDistance,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      // Update the date after animation completes
       onChangeDate(newDate);
-
-      // Reset position to opposite side for slide-in
-      slideAnim.setValue(delta > 0 ? slideDistance : -slideDistance);
-
-      // Slide in new week
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start(() => {
-        setIsAnimating(false);
-        setAnimationDirection(null);
-      });
+      slideAnim.setValue(0);
+      setNextWeekDays([]);
+      setIsAnimating(false);
     });
   }
 
@@ -152,67 +155,126 @@ export default function WeekNav({ currentDate, onChangeDate, onResetToToday }: W
   return (
     <View style={styles.container}>
       <GestureDetector gesture={swipeGesture}>
-        <Animated.View
-          style={[
-            styles.daysWrapper,
-            {
-              transform: [{ translateX: slideAnim }],
-            },
-          ]}
-        >
-          <View style={[styles.daysContainer, { maxWidth, alignSelf: 'center', width: '100%' }]}>
-            {weekDays.map((day) => (
-              <TouchableOpacity
-                key={day.dateStr}
-                style={[
-                  styles.dayCard,
-                  { width: dayCardWidth },
-                  day.isSelected && styles.dayCardSelected,
-                  day.isToday && !day.isSelected && styles.dayCardToday,
-                ]}
-                onPress={() => selectDay(day)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.dayOfWeek,
-                    day.isSelected && styles.dayOfWeekSelected,
-                    day.isToday && !day.isSelected && styles.dayOfWeekToday,
-                  ]}
-                >
-                  {day.dayOfWeek}
-                </Text>
-                <Text
-                  style={[
-                    styles.dayNum,
-                    day.isSelected && styles.dayNumSelected,
-                    day.isToday && !day.isSelected && styles.dayNumToday,
-                  ]}
-                >
-                  {day.dayNum}
-                </Text>
-                <View style={styles.starsRow}>
-                  <Text
+        <View style={styles.animationContainer}>
+          <Animated.View
+            style={[
+              styles.daysWrapper,
+              {
+                transform: [{ translateX: slideAnim }],
+              },
+            ]}
+          >
+            <View style={[styles.weeksRow, { maxWidth: windowWidth }]}>
+              {/* Current week */}
+              <View style={[styles.daysContainer, { maxWidth, width: effectiveWidth }]}>
+                {weekDays.map((day) => (
+                  <TouchableOpacity
+                    key={day.dateStr}
                     style={[
-                      styles.starsText,
-                      day.isSelected && styles.starsTextSelected,
-                      day.isToday && !day.isSelected && styles.starsTextToday,
+                      styles.dayCard,
+                      { width: dayCardWidth },
+                      day.isSelected && styles.dayCardSelected,
+                      day.isToday && !day.isSelected && styles.dayCardToday,
                     ]}
+                    onPress={() => selectDay(day)}
+                    activeOpacity={0.7}
                   >
-                    {day.stars > 0 ? day.stars.toFixed(0) : '–'}
-                  </Text>
-                  {day.stars > 0 && (
-                    <MaterialCommunityIcons
-                      name="star"
-                      size={12}
-                      color={day.isSelected ? '#fbbf24' : day.isToday ? '#818cf8' : '#ca8a04'}
-                    />
-                  )}
+                    <Text
+                      style={[
+                        styles.dayOfWeek,
+                        day.isSelected && styles.dayOfWeekSelected,
+                        day.isToday && !day.isSelected && styles.dayOfWeekToday,
+                      ]}
+                    >
+                      {day.dayOfWeek}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.dayNum,
+                        day.isSelected && styles.dayNumSelected,
+                        day.isToday && !day.isSelected && styles.dayNumToday,
+                      ]}
+                    >
+                      {day.dayNum}
+                    </Text>
+                    <View style={styles.starsRow}>
+                      <Text
+                        style={[
+                          styles.starsText,
+                          day.isSelected && styles.starsTextSelected,
+                          day.isToday && !day.isSelected && styles.starsTextToday,
+                        ]}
+                      >
+                        {day.stars > 0 ? day.stars.toFixed(0) : '–'}
+                      </Text>
+                      {day.stars > 0 && (
+                        <MaterialCommunityIcons
+                          name="star"
+                          size={12}
+                          color={day.isSelected ? '#fbbf24' : day.isToday ? '#818cf8' : '#ca8a04'}
+                        />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Next week (shown during animation) */}
+              {nextWeekDays.length > 0 && (
+                <View style={[styles.daysContainer, { maxWidth, width: effectiveWidth, marginLeft: 16 }]}>
+                  {nextWeekDays.map((day) => (
+                    <View
+                      key={day.dateStr}
+                      style={[
+                        styles.dayCard,
+                        { width: dayCardWidth },
+                        day.isSelected && styles.dayCardSelected,
+                        day.isToday && !day.isSelected && styles.dayCardToday,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dayOfWeek,
+                          day.isSelected && styles.dayOfWeekSelected,
+                          day.isToday && !day.isSelected && styles.dayOfWeekToday,
+                        ]}
+                      >
+                        {day.dayOfWeek}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.dayNum,
+                          day.isSelected && styles.dayNumSelected,
+                          day.isToday && !day.isSelected && styles.dayNumToday,
+                        ]}
+                      >
+                        {day.dayNum}
+                      </Text>
+                      <View style={styles.starsRow}>
+                        <Text
+                          style={[
+                            styles.starsText,
+                            day.isSelected && styles.starsTextSelected,
+                            day.isToday && !day.isSelected && styles.starsTextToday,
+                          ]}
+                        >
+                          {day.stars > 0 ? day.stars.toFixed(0) : '–'}
+                        </Text>
+                        {day.stars > 0 && (
+                          <MaterialCommunityIcons
+                            name="star"
+                            size={12}
+                            color={day.isSelected ? '#fbbf24' : day.isToday ? '#818cf8' : '#ca8a04'}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  ))}
                 </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
+              )}
+            </View>
+          </Animated.View>
+        </View>
       </GestureDetector>
     </View>
   );
@@ -221,9 +283,16 @@ export default function WeekNav({ currentDate, onChangeDate, onResetToToday }: W
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 8,
+    overflow: 'hidden',
+  },
+  animationContainer: {
+    overflow: 'hidden',
   },
   daysWrapper: {
     paddingHorizontal: 16,
+  },
+  weeksRow: {
+    flexDirection: 'row',
   },
   daysContainer: {
     flexDirection: 'row',
@@ -232,13 +301,15 @@ const styles = StyleSheet.create({
   },
   dayCard: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 6,
     paddingHorizontal: 4,
     backgroundColor: '#1a1a2e',
     borderRadius: 10,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
+    aspectRatio: 1,
+    justifyContent: 'center',
   },
   dayCardSelected: {
     backgroundColor: '#1e1b4b',
@@ -249,10 +320,10 @@ const styles = StyleSheet.create({
     borderColor: '#ca8a04',
   },
   dayOfWeek: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: '#9ca3af',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   dayOfWeekSelected: {
     color: '#c4b5fd',
@@ -261,10 +332,10 @@ const styles = StyleSheet.create({
     color: '#fde68a',
   },
   dayNum: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#f0f0f0',
-    marginBottom: 6,
+    marginBottom: 2,
   },
   dayNumSelected: {
     color: '#fff',
@@ -278,7 +349,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   starsText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
     color: '#ca8a04',
   },
