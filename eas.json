@@ -8,14 +8,14 @@
         "buildType": "apk"
       },
       "channel": "preview",
-      "node": "24",
+      "node": "22",
       "packageManager": "pnpm"
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
       },
-      "node": "24",
+      "node": "22",
       "packageManager": "pnpm"
     }
   },

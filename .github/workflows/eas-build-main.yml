@@ -12,7 +12,6 @@ jobs:
     permissions:
       contents: read
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       npm_config_user_agent: pnpm
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +20,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
           cache: 'pnpm'
 
       - name: Setup Expo
@@ -43,7 +42,6 @@ jobs:
     permissions:
       contents: write
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       npm_config_user_agent: pnpm
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +50,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
           cache: 'pnpm'
 
       - name: Setup Expo
