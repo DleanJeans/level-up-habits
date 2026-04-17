@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getTimeFormat, setTimeFormat, TimeFormat, getWeekStartDay, setWeekStartDay, WeekStartDay } from '../store/storage';
+import { getTimeFormat, setTimeFormat, TimeFormat } from '../store/storage';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [timeFormat, setTimeFormatState] = useState<TimeFormat>('24');
-  const [weekStartDay, setWeekStartDayState] = useState<WeekStartDay>('monday');
 
   useFocusEffect(
     React.useCallback(() => {
@@ -17,19 +16,12 @@ export default function SettingsScreen() {
 
   async function loadSettings() {
     const format = await getTimeFormat();
-    const startDay = await getWeekStartDay();
     setTimeFormatState(format);
-    setWeekStartDayState(startDay);
   }
 
   async function handleTimeFormatChange(format: TimeFormat) {
     setTimeFormatState(format);
     await setTimeFormat(format);
-  }
-
-  async function handleWeekStartDayChange(startDay: WeekStartDay) {
-    setWeekStartDayState(startDay);
-    await setWeekStartDay(startDay);
   }
 
   return (
@@ -41,51 +33,7 @@ export default function SettingsScreen() {
       ]}
     >
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Calendar & Time</Text>
-
-        <View style={styles.settingRow}>
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Week Starts On</Text>
-            <Text style={styles.settingDescription}>
-              Choose which day starts the week in the calendar
-            </Text>
-          </View>
-          <View style={styles.toggleContainer}>
-            <TouchableOpacity
-              style={[
-                styles.toggleOption,
-                weekStartDay === 'monday' && styles.toggleOptionActive,
-              ]}
-              onPress={() => handleWeekStartDayChange('monday')}
-            >
-              <Text
-                style={[
-                  styles.toggleText,
-                  weekStartDay === 'monday' && styles.toggleTextActive,
-                ]}
-              >
-                Mon
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.toggleOption,
-                weekStartDay === 'sunday' && styles.toggleOptionActive,
-              ]}
-              onPress={() => handleWeekStartDayChange('sunday')}
-            >
-              <Text
-                style={[
-                  styles.toggleText,
-                  weekStartDay === 'sunday' && styles.toggleTextActive,
-                ]}
-              >
-                Sun
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
+        <Text style={styles.sectionTitle}>Time Display</Text>
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Time Format</Text>

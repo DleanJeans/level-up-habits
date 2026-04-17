@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, useWindowDimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { formatDate, getDayTotal, getWeekStartDay, WeekStartDay } from '../store/storage';
+import { formatDate, getDayTotal } from '../store/storage';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 
 interface WeekNavProps {
   currentDate: Date;
   onChangeDate: (date: Date) => void;
+  onResetToToday?: () => void;
 }
 
 interface DayInfo {
@@ -19,17 +20,17 @@ interface DayInfo {
   stars: number;
 }
 
-function getWeekDays(selectedDate: Date, weekStartDay: WeekStartDay): DayInfo[] {
+// Always start week on Monday
+function getWeekDays(selectedDate: Date): DayInfo[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Get the start of the week based on user preference
+  // Get the start of the week (Monday)
   const startOfWeek = new Date(selectedDate);
   const currentDay = selectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  const startDayOffset = weekStartDay === 'monday' ? 1 : 0;
 
-  // Calculate days to subtract to get to the start of week
-  let daysToSubtract = currentDay - startDayOffset;
+  // Calculate days to subtract to get to Monday
+  let daysToSubtract = currentDay - 1;
   if (daysToSubtract < 0) {
     daysToSubtract += 7;
   }
@@ -38,9 +39,7 @@ function getWeekDays(selectedDate: Date, weekStartDay: WeekStartDay): DayInfo[] 
   startOfWeek.setHours(0, 0, 0, 0);
 
   const days: DayInfo[] = [];
-  const dayNames = weekStartDay === 'monday'
-    ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   for (let i = 0; i < 7; i++) {
     const date = new Date(startOfWeek);
@@ -66,24 +65,16 @@ function getWeekDays(selectedDate: Date, weekStartDay: WeekStartDay): DayInfo[] 
   return days;
 }
 
-export default function WeekNav({ currentDate, onChangeDate }: WeekNavProps) {
+export default function WeekNav({ currentDate, onChangeDate, onResetToToday }: WeekNavProps) {
   const { width: windowWidth } = useWindowDimensions();
-  const [weekStartDay, setWeekStartDayState] = useState<WeekStartDay>('monday');
-  const [weekDays, setWeekDays] = useState<DayInfo[]>(() => getWeekDays(currentDate, 'monday'));
+  const [weekDays, setWeekDays] = useState<DayInfo[]>(() => getWeekDays(currentDate));
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [isAnimating, setIsAnimating] = useState(false);
-
-  useEffect(() => {
-    async function loadWeekStartDay() {
-      const startDay = await getWeekStartDay();
-      setWeekStartDayState(startDay);
-    }
-    loadWeekStartDay();
-  }, []);
+  const [animationDirection, setAnimationDirection] = useState<'left' | 'right' | null>(null);
 
   useEffect(() => {
     async function loadStars() {
-      const days = getWeekDays(currentDate, weekStartDay);
+      const days = getWeekDays(currentDate);
       const daysWithStars = await Promise.all(
         days.map(async (day) => ({
           ...day,
@@ -93,33 +84,44 @@ export default function WeekNav({ currentDate, onChangeDate }: WeekNavProps) {
       setWeekDays(daysWithStars);
     }
     loadStars();
-  }, [currentDate, weekStartDay]);
+  }, [currentDate]);
 
   function changeWeek(delta: number) {
     if (isAnimating) return;
 
     setIsAnimating(true);
-    const direction = delta > 0 ? 1 : -1;
+    const direction = delta > 0 ? 'left' : 'right';
+    setAnimationDirection(direction);
 
-    // Slide animation
+    // Full slide-in animation: slide out current, slide in new
+    const slideDistance = windowWidth;
+
     Animated.sequence([
+      // Slide out current week
       Animated.timing(slideAnim, {
-        toValue: -direction * 20,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 150,
+        toValue: delta > 0 ? -slideDistance : slideDistance,
+        duration: 250,
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setIsAnimating(false);
-    });
+      // Update the week immediately
+      const newDate = new Date(currentDate);
+      newDate.setDate(currentDate.getDate() + delta * 7);
+      onChangeDate(newDate);
 
-    const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() + delta * 7);
-    onChangeDate(newDate);
+      // Reset position to opposite side for slide-in
+      slideAnim.setValue(delta > 0 ? slideDistance : -slideDistance);
+
+      // Slide in new week
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsAnimating(false);
+        setAnimationDirection(null);
+      });
+    });
   }
 
   function selectDay(day: DayInfo) {
@@ -149,24 +151,6 @@ export default function WeekNav({ currentDate, onChangeDate }: WeekNavProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => changeWeek(-1)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          disabled={isAnimating}
-        >
-          <MaterialCommunityIcons name="chevron-left" size={28} color="#818cf8" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity
-          onPress={() => changeWeek(1)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          disabled={isAnimating}
-        >
-          <MaterialCommunityIcons name="chevron-right" size={28} color="#818cf8" />
-        </TouchableOpacity>
-      </View>
-
       <GestureDetector gesture={swipeGesture}>
         <Animated.View
           style={[
@@ -237,13 +221,6 @@ export default function WeekNav({ currentDate, onChangeDate }: WeekNavProps) {
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 8,
   },
   daysWrapper: {
     paddingHorizontal: 16,
