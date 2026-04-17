@@ -1,4 +1,4 @@
-name: EAS Android Build for Main Branch
+name: EAS (main)
 
 on:
   push:
