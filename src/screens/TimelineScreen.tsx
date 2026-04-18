@@ -6,7 +6,7 @@ import { Habit, HabitLog } from '../models/types';
 import { getHabits, getLogsForDate, saveLog, formatDate } from '../store/storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import WebContainer from '../components/WebContainer';
-import DateNav from '../components/DateNav';
+import WeekNav from '../components/WeekNav';
 import EditTimeModal, { toHHMM } from '../components/EditTimeModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -73,10 +73,8 @@ export default function TimelineScreen() {
     }, [loadData])
   );
 
-  function changeDate(delta: number) {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() + delta);
-    setCurrentDate(d);
+  function changeDate(date: Date) {
+    setCurrentDate(date);
   }
 
   function openEditTime(entry: TimelineEntry) {
@@ -117,8 +115,8 @@ export default function TimelineScreen() {
   return (
     <WebContainer>
     <View style={styles.container}>
-      {/* Date navigation */}
-      <DateNav currentDate={currentDate} onChangeDate={changeDate} />
+      {/* Week navigation */}
+      <WeekNav currentDate={currentDate} onChangeDate={changeDate} />
 
       {/* Toggle for hiding auto-habits */}
       <TouchableOpacity
@@ -160,7 +158,7 @@ export default function TimelineScreen() {
               <View key={seg}>
                 <Text style={styles.segmentTitle}>{seg}</Text>
                 {grouped.get(seg)!.map((entry, i) => (
-                  <View key={entry.log.habitId} style={styles.entryRow}>
+                  <View key={entry.log.id || entry.log.habitId} style={styles.entryRow}>
                     <View style={styles.timelineTrack}>
                       <View style={styles.dot} />
                       {i < grouped.get(seg)!.length - 1 && <View style={styles.line} />}

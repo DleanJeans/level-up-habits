@@ -33,13 +33,14 @@ import {
   getAppCheckInHabitId,
   canLogAppCheckIn,
   getAppCheckInCooldownRemaining,
+  getAppCheckInCount,
 } from '../store/storage';
 import { calculateStars } from '../store/starCalculator';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
 import WebContainer from '../components/WebContainer';
 import HabitForm from '../components/HabitForm';
-import DateNav from '../components/DateNav';
+import WeekNav from '../components/WeekNav';
 import EditTimeModal, { toHHMM } from '../components/EditTimeModal';
 import DailyHeader from '../components/DailyHeader';
 
@@ -71,6 +72,8 @@ export default function DailyLogScreen() {
   const [editingLog, setEditingLog] = useState<{ habit: Habit; log: HabitLog } | null>(null);
   // App check-in cooldown
   const [appCheckInCooldown, setAppCheckInCooldown] = useState(0);
+  // App check-in count
+  const [appCheckInCount, setAppCheckInCount] = useState(0);
 
   const dateStr = formatDate(currentDate);
 
@@ -116,42 +119,32 @@ export default function DailyLogScreen() {
     // Update app check-in cooldown
     const cooldown = await getAppCheckInCooldownRemaining(dateStr);
     setAppCheckInCooldown(cooldown);
+
+    // Update app check-in count
+    const count = await getAppCheckInCount(dateStr);
+    setAppCheckInCount(count);
   }, [dateStr]);
 
-  // Auto-log app check-in on screen focus (if cooldown has passed)
-  const autoLogAppCheckIn = useCallback(async () => {
+  // Manual check-in for app check-in button
+  const manualLogAppCheckIn = useCallback(async () => {
     const today = formatDate(new Date());
-    if (dateStr !== today) return; // Only auto-log for today
+    if (dateStr !== today) return; // Only allow manual check-in for today
 
     const appCheckInId = getAppCheckInHabitId();
     const habits = await getHabits();
     const appCheckInHabit = habits.find((h) => h.id === appCheckInId);
     if (!appCheckInHabit) return;
 
-    const logs = await getLogsForDate(dateStr);
-    const existingLog = logs.find((l) => l.habitId === appCheckInId);
-    const currentValue = typeof existingLog?.value === 'number' ? existingLog.value : 0;
-
-    // Fix stale starsEarned: if an existing log has the wrong star count (e.g. 0
-    // due to a previous migration bug), correct it without needing a new check-in.
-    if (existingLog && currentValue > 0) {
-      const expectedStars = calculateStars(appCheckInHabit, currentValue);
-      if (existingLog.starsEarned !== expectedStars) {
-        await saveLog({ ...existingLog, starsEarned: expectedStars });
-        loadData();
-      }
-    }
-
     const canLog = await canLogAppCheckIn(dateStr);
     if (!canLog) return;
 
-    const newValue = currentValue + 1;
-
-    const starsEarned = calculateStars(appCheckInHabit, newValue);
+    // Create a new check-in log with a unique ID
+    const starsEarned = calculateStars(appCheckInHabit, 1);
     const log: HabitLog = {
+      id: uuidv4(), // Unique ID for each check-in
       habitId: appCheckInId,
       date: dateStr,
-      value: newValue,
+      value: 1, // Each check-in is worth 1
       starsEarned,
       loggedAt: new Date().toISOString(),
     };
@@ -161,8 +154,8 @@ export default function DailyLogScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadData().then(() => autoLogAppCheckIn());
-    }, [loadData, autoLogAppCheckIn])
+      loadData();
+    }, [loadData])
   );
 
   // Update cooldown timer every second
@@ -347,10 +340,8 @@ export default function DailyLogScreen() {
     loadData();
   }
 
-  function changeDate(delta: number) {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() + delta);
-    setCurrentDate(d);
+  function changeDate(date: Date) {
+    setCurrentDate(date);
   }
 
   function handleEditHabit(habit: Habit) {
@@ -362,6 +353,8 @@ export default function DailyLogScreen() {
     const log = logs.get(item.id);
     const starsEarned = log?.starsEarned ?? 0;
     const isAppCheckIn = item.isAutoHabit && item.id === getAppCheckInHabitId();
+    const today = formatDate(new Date());
+    const isToday = dateStr === today;
 
     // Format cooldown timer
     const formatCooldown = (seconds: number): string => {
@@ -378,11 +371,7 @@ export default function DailyLogScreen() {
       >
         <View style={styles.habitInfo}>
           <Text style={styles.habitName}>{item.name}</Text>
-          {isAppCheckIn && appCheckInCooldown > 0 && (
-            <Text style={styles.cooldownText}>
-              Next reward in: {formatCooldown(appCheckInCooldown)}
-            </Text>
-          )}
+
         </View>
         {(starsEarned !== 0 || ((item.type === 'checkbox' || item.type === 'time-based') && log?.value === true && log?.loggedAt)) && (
           <View style={styles.starCol}>
@@ -481,11 +470,28 @@ export default function DailyLogScreen() {
             </TouchableOpacity>
           </View>
         ) : isAppCheckIn ? (
-          <View style={styles.autoHabitBadge}>
-            <Text style={styles.autoHabitValue}>
-              {typeof log?.value === 'number' ? log.value : 0}
-            </Text>
-            <MaterialCommunityIcons name="check-circle" size={20} color="#818cf8" />
+          <View style={styles.checkInContainer}>
+            <View style={styles.checkInCount}>
+              <Text style={styles.checkInCountText}>{appCheckInCount}</Text>
+              <MaterialCommunityIcons name="check-circle" size={16} color="#818cf8" />
+            </View>
+            {isToday && (
+              <TouchableOpacity
+                style={[
+                  styles.claimButton,
+                  appCheckInCooldown > 0 && styles.claimButtonDisabled,
+                ]}
+                onPress={manualLogAppCheckIn}
+                disabled={appCheckInCooldown > 0}
+              >
+                <Text style={[
+                  styles.claimButtonText,
+                  appCheckInCooldown > 0 && styles.claimButtonTextDisabled,
+                ]}>
+                  {appCheckInCooldown > 0 ? formatCooldown(appCheckInCooldown) : 'Claim'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : null}
       </TouchableOpacity>
@@ -507,8 +513,8 @@ export default function DailyLogScreen() {
         onCancel={() => setEditingLog(null)}
       />
 
-      {/* Date navigation */}
-      <DateNav currentDate={currentDate} onChangeDate={changeDate} />
+      {/* Week navigation */}
+      <WeekNav currentDate={currentDate} onChangeDate={changeDate} />
 
       {/* Reminder banners */}
       {reminderBanners.map((banner, i) => (
@@ -894,16 +900,39 @@ const styles = StyleSheet.create({
   },
   moodLogCue: { fontSize: 13, color: '#c4b5fd' },
   moodLogRoutine: { fontSize: 12, color: '#818cf8' },
-  // Auto-habit styles
+  // Check-in styles
   cooldownText: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  autoHabitBadge: {
+  checkInContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    gap: 10,
+  },
+  checkInCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     backgroundColor: '#1e1b4b',
     borderRadius: 8,
   },
-  autoHabitValue: { fontSize: 16, fontWeight: '600', color: '#818cf8' },
+  checkInCountText: { fontSize: 15, fontWeight: '600', color: '#818cf8' },
+  claimButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#6366f1',
+    borderRadius: 8,
+  },
+  claimButtonDisabled: {
+    backgroundColor: '#2a2a2a',
+    opacity: 0.5,
+  },
+  claimButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  claimButtonTextDisabled: {
+    color: '#666',
+  },
 });
