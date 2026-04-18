@@ -1,14 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface DailyHeaderProps {
   totalStars: number;
 }
 
 export default function DailyHeader({ totalStars }: DailyHeaderProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.headerContainer}>
+    <View style={[styles.headerContainer, { paddingTop: insets.top + 12 }]}>
       <Text style={styles.headerTitle}>Level Up Habits</Text>
       <View style={styles.starsContainer}>
         <Text style={styles.starsValue}>
@@ -26,7 +29,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingBottom: 12,
     backgroundColor: '#121212',
     borderBottomWidth: 1,
     borderBottomColor: '#2a2a2a',
