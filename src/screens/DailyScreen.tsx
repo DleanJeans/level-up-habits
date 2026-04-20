@@ -42,6 +42,7 @@ import WebContainer from '../components/WebContainer';
 import HabitForm from '../components/HabitForm';
 import WeekNav from '../components/WeekNav';
 import EditTimeModal, { toHHMM } from '../components/EditTimeModal';
+import LogNumeralDialog from '../components/LogNumeralDialog';
 import DailyHeader from '../components/DailyHeader';
 
 export default function DailyLogScreen() {
@@ -51,8 +52,6 @@ export default function DailyLogScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<Map<string, HabitLog>>(new Map());
   const [totalStars, setTotalStars] = useState(0);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState('');
   // Tasks
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTaskName, setNewTaskName] = useState('');
@@ -70,6 +69,8 @@ export default function DailyLogScreen() {
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   // Edit log time
   const [editingLog, setEditingLog] = useState<{ habit: Habit; log: HabitLog } | null>(null);
+  // Log numeral dialog
+  const [loggingNumeral, setLoggingNumeral] = useState<Habit | null>(null);
   // App check-in cooldown
   const [appCheckInCooldown, setAppCheckInCooldown] = useState(0);
   // App check-in count
@@ -207,20 +208,26 @@ export default function DailyLogScreen() {
     loadData();
   }
 
-  async function updateNumeral(habit: Habit, delta: number) {
+  // Removed updateNumeral function - replaced with logNumeralWithTime
+
+  async function logNumeralWithTime(habit: Habit, repetition: number, hours: number, minutes: number) {
     const existing = logs.get(habit.id);
     const currentVal = existing ? (typeof existing.value === 'number' ? existing.value : 0) : 0;
-    const newVal = Math.max(0, currentVal + delta);
+    const newVal = Math.max(0, currentVal + repetition);
     const starsEarned = calculateStars(habit, newVal);
+
+    const logDate = new Date(dateStr + 'T00:00:00');
+    logDate.setHours(hours, minutes, 0, 0);
 
     const log: HabitLog = {
       habitId: habit.id,
       date: dateStr,
       value: newVal,
       starsEarned,
-      loggedAt: new Date().toISOString(),
+      loggedAt: logDate.toISOString(),
     };
     await saveLog(log);
+    setLoggingNumeral(null);
     loadData();
   }
 
@@ -419,54 +426,20 @@ export default function DailyLogScreen() {
             )}
           </TouchableOpacity>
         ) : !isAppCheckIn && (item.type === 'numeral' || item.type === 'tiered') ? (
-          <View style={styles.stepper}>
-            <TouchableOpacity style={styles.stepBtn} onPress={() => updateNumeral(item, -1)}>
-              <Text style={styles.stepBtnText}>−</Text>
-            </TouchableOpacity>
-            {editingId === item.id ? (
-              <View style={styles.stepValueContainer}>
-                <TextInput
-                  style={styles.stepValueInput}
-                  value={editDraft}
-                  onChangeText={setEditDraft}
-                  keyboardType="numeric"
-                  autoFocus
-                  selectTextOnFocus
-                  onBlur={() => {
-                    const parsed = parseInt(editDraft, 10);
-                    setNumeralValue(item, isNaN(parsed) ? 0 : parsed);
-                    setEditingId(null);
-                  }}
-                  onSubmitEditing={() => {
-                    const parsed = parseInt(editDraft, 10);
-                    setNumeralValue(item, isNaN(parsed) ? 0 : parsed);
-                    setEditingId(null);
-                  }}
-                />
-                {item.unit ? (
-                  <Text style={styles.stepUnitText}>{item.unit}</Text>
-                ) : null}
-              </View>
-            ) : (
-              <TouchableOpacity
-                onPress={() => {
-                  const currentVal = typeof log?.value === 'number' ? log.value : 0;
-                  setEditDraft(String(currentVal));
-                  setEditingId(item.id);
-                }}
-              >
-                <View style={styles.stepValueContainer}>
-                  <Text style={styles.stepValue}>
-                    {typeof log?.value === 'number' ? log.value : 0}
-                  </Text>
-                  {item.unit ? (
-                    <Text style={styles.stepUnitText}>{item.unit}</Text>
-                  ) : null}
-                </View>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={styles.stepBtn} onPress={() => updateNumeral(item, 1)}>
-              <Text style={styles.stepBtnText}>+</Text>
+          <View style={styles.numeralContainer}>
+            <View style={styles.numeralValueContainer}>
+              <Text style={styles.numeralValue}>
+                {typeof log?.value === 'number' ? log.value : 0}
+              </Text>
+              {item.unit ? (
+                <Text style={styles.numeralUnitText}>{item.unit}</Text>
+              ) : null}
+            </View>
+            <TouchableOpacity
+              style={styles.logButton}
+              onPress={() => setLoggingNumeral(item)}
+            >
+              <Text style={styles.logButtonText}>Log</Text>
             </TouchableOpacity>
           </View>
         ) : isAppCheckIn ? (
@@ -511,6 +484,14 @@ export default function DailyLogScreen() {
         initialTime={editingLog?.log.loggedAt ? toHHMM(new Date(editingLog.log.loggedAt)) : ''}
         onSave={handleSaveLogTime}
         onCancel={() => setEditingLog(null)}
+      />
+
+      <LogNumeralDialog
+        visible={!!loggingNumeral}
+        habitName={loggingNumeral?.name ?? ''}
+        habitUnit={loggingNumeral?.unit}
+        onSave={(repetition, hours, minutes) => loggingNumeral && logNumeralWithTime(loggingNumeral, repetition, hours, minutes)}
+        onCancel={() => setLoggingNumeral(null)}
       />
 
       {/* Week navigation */}
@@ -737,6 +718,23 @@ const styles = StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: '#6366f1', borderColor: '#6366f1' },
   checkboxText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  numeralContainer: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  numeralValueContainer: { alignItems: 'center', minWidth: 56 },
+  numeralValue: { fontSize: 15, fontWeight: '500', textAlign: 'center', color: '#f0f0f0' },
+  numeralUnitText: { fontSize: 11, color: '#9ca3af', textAlign: 'center', marginTop: 2 },
+  logButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#6366f1',
+    borderRadius: 8,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  logButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   stepBtn: {
     width: 44,
