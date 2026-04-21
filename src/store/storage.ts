@@ -241,6 +241,90 @@ export async function setTimeFormat(format: TimeFormat): Promise<void> {
   await saveSettings(settings);
 }
 
+// --- Export/Import ---
+
+export interface ExportData {
+  version: string;
+  exportedAt: string;
+  habits: Habit[];
+  logs: { [date: string]: HabitLog[] };
+  tasks: { [date: string]: Task[] };
+  moodLogs: { [date: string]: MoodLog[] };
+  settings: Settings;
+}
+
+export async function exportAllData(): Promise<ExportData> {
+  // Get all keys from AsyncStorage
+  const allKeys = await AsyncStorage.getAllKeys();
+
+  // Separate keys by type
+  const logsKeys = allKeys.filter(k => k.startsWith(LOGS_PREFIX));
+  const tasksKeys = allKeys.filter(k => k.startsWith(TASKS_PREFIX));
+  const moodLogsKeys = allKeys.filter(k => k.startsWith(MOOD_LOGS_PREFIX));
+
+  // Fetch all data
+  const habits = await getHabits();
+  const settings = await getSettings();
+
+  // Fetch all logs by date
+  const logs: { [date: string]: HabitLog[] } = {};
+  for (const key of logsKeys) {
+    const date = key.substring(LOGS_PREFIX.length);
+    logs[date] = await getLogsForDate(date);
+  }
+
+  // Fetch all tasks by date
+  const tasks: { [date: string]: Task[] } = {};
+  for (const key of tasksKeys) {
+    const date = key.substring(TASKS_PREFIX.length);
+    tasks[date] = await getTasksForDate(date);
+  }
+
+  // Fetch all mood logs by date
+  const moodLogs: { [date: string]: MoodLog[] } = {};
+  for (const key of moodLogsKeys) {
+    const date = key.substring(MOOD_LOGS_PREFIX.length);
+    moodLogs[date] = await getMoodLogsForDate(date);
+  }
+
+  return {
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    habits,
+    logs,
+    tasks,
+    moodLogs,
+    settings,
+  };
+}
+
+export async function importAllData(data: ExportData): Promise<void> {
+  // Import habits
+  await AsyncStorage.setItem(HABITS_KEY, JSON.stringify(data.habits));
+
+  // Import logs by date
+  for (const [date, logsArray] of Object.entries(data.logs)) {
+    await AsyncStorage.setItem(logsKey(date), JSON.stringify(logsArray));
+  }
+
+  // Import tasks by date
+  for (const [date, tasksArray] of Object.entries(data.tasks)) {
+    await AsyncStorage.setItem(tasksKey(date), JSON.stringify(tasksArray));
+  }
+
+  // Import mood logs by date
+  for (const [date, moodLogsArray] of Object.entries(data.moodLogs)) {
+    await AsyncStorage.setItem(moodLogsKey(date), JSON.stringify(moodLogsArray));
+  }
+
+  // Import settings
+  await saveSettings(data.settings);
+}
+
+export async function clearAllData(): Promise<void> {
+  const allKeys = await AsyncStorage.getAllKeys();
+  await AsyncStorage.multiRemove(allKeys);
+}
 // --- Auto-Habits ---
 
 const APP_CHECK_IN_ID = 'auto-habit-app-check-in';

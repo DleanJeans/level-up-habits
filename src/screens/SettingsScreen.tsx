@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getTimeFormat, setTimeFormat, TimeFormat } from '../store/storage';
+import Clipboard from '@react-native-clipboard/clipboard';
+import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import { getTimeFormat, setTimeFormat, TimeFormat, exportAllData, importAllData, clearAllData } from '../store/storage';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -22,6 +25,110 @@ export default function SettingsScreen() {
   async function handleTimeFormatChange(format: TimeFormat) {
     setTimeFormatState(format);
     await setTimeFormat(format);
+  }
+
+  async function handleExportToClipboard() {
+    try {
+      const data = await exportAllData();
+      const jsonString = JSON.stringify(data, null, 2);
+      Clipboard.setString(jsonString);
+      Alert.alert('Success', 'Data copied to clipboard!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to export data to clipboard.');
+      console.error(error);
+    }
+  }
+
+  async function handleImportFromClipboard() {
+    try {
+      const jsonString = await Clipboard.getString();
+      if (!jsonString) {
+        Alert.alert('Error', 'No data found in clipboard.');
+        return;
+      }
+      const data = JSON.parse(jsonString);
+
+      Alert.alert(
+        'Confirm Import',
+        'This will replace all your current data. Are you sure?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Import',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await importAllData(data);
+                Alert.alert('Success', 'Data imported successfully!');
+                loadSettings();
+              } catch (error) {
+                Alert.alert('Error', 'Failed to import data.');
+                console.error(error);
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Invalid data format in clipboard.');
+      console.error(error);
+    }
+  }
+
+  async function handleExportToFile() {
+    try {
+      const data = await exportAllData();
+      const jsonString = JSON.stringify(data, null, 2);
+
+      const fileName = `level-up-habits-backup-${new Date().toISOString().split('T')[0]}.json`;
+      const fileUri = `${documentDirectory}${fileName}`;
+
+      await writeAsStringAsync(fileUri, jsonString, {
+        encoding: EncodingType.UTF8,
+      });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri);
+      } else {
+        Alert.alert('Success', `Data exported to: ${fileUri}`);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to export data to file.');
+      console.error(error);
+    }
+  }
+
+  async function handleImportFromFile() {
+    Alert.alert(
+      'Import from File',
+      'To import data from a file:\n\n1. Copy the entire contents of your backup JSON file\n2. Use "Paste from Clipboard" button to import',
+      [{ text: 'OK' }]
+    );
+  }
+
+  async function handleClearAllData() {
+    Alert.alert(
+      'Clear All Data',
+      'This will permanently delete all habits, logs, tasks, and settings. This cannot be undone. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await clearAllData();
+              Alert.alert('Success', 'All data cleared successfully!');
+              loadSettings();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to clear data.');
+              console.error(error);
+            }
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -82,6 +189,52 @@ export default function SettingsScreen() {
             {timeFormat === '12' ? '02:30 PM' : '14:30'}
           </Text>
         </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Data Management</Text>
+        <Text style={styles.sectionDescription}>
+          Export or import your data for backup or moving between devices
+        </Text>
+
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleExportToClipboard}
+          >
+            <Text style={styles.primaryButtonText}>Copy to Clipboard</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleImportFromClipboard}
+          >
+            <Text style={styles.primaryButtonText}>Paste from Clipboard</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleExportToFile}
+          >
+            <Text style={styles.secondaryButtonText}>Export to File</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleImportFromFile}
+          >
+            <Text style={styles.secondaryButtonText}>Import from File</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.dangerButton}
+          onPress={handleClearAllData}
+        >
+          <Text style={styles.dangerButtonText}>Clear All Data</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -166,5 +319,56 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#a5b4fc',
+  },
+  sectionDescription: {
+    fontSize: 13,
+    color: '#9ca3af',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: '#6366f1',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: '#2a2a2a',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#f0f0f0',
+  },
+  dangerButton: {
+    backgroundColor: '#dc2626',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  dangerButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
