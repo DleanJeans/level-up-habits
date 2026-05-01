@@ -2,6 +2,11 @@ name: Remove [WIP] from PR Titles
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - copilot/remove-wip-from-pr-titles
+    paths:
+      - .github/workflows/remove-wip-titles.yml
 
 jobs:
   remove-wip:
