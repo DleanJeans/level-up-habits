@@ -1,0 +1,28 @@
+name: Remove [WIP] from PR Titles
+
+on:
+  workflow_dispatch:
+
+jobs:
+  remove-wip:
+    name: Remove [WIP] from all PR titles
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Remove [WIP] from PR titles
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr list \
+            --repo ${{ github.repository }} \
+            --state all \
+            --search "[WIP] in:title" \
+            --json number,title \
+            --jq '.[] | "\(.number) \(.title)"' | \
+          while IFS=' ' read -r number title; do
+            new_title="${title/\[WIP\] /}"
+            new_title="${new_title/\[WIP\]/}"
+            echo "PR #$number: $title -> $new_title"
+            gh pr edit "$number" --repo ${{ github.repository }} --title "$new_title"
+          done
